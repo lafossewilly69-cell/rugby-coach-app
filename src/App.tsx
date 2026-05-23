@@ -3,6 +3,7 @@ import Tactique from './Tactique';
 import Terrain from './Terrain';
 import MiniTerrain from './MiniTerrain';
 import Effectif from './Effectif';
+import Cycle from './Cycle';
 import { exporterSeancePDF } from './ExportPDF';
 const CATEGORIES = ['U6','U8','U10','U12','U14','U16','U18','Seniors','Vétérans'];
 const GENRES = ['Féminines','Masculins','Mixte'];
@@ -12,7 +13,7 @@ type Seance = {id:string;date:string;heure:string;duree:number;categorie:string;
 const C:Record<string,string>={'Attaque':'#e74c3c','Défense':'#3498db','Touche':'#2ecc71','Mêlée':'#9b59b6','Jeu au pied':'#f39c12','Condition physique':'#1abc9c','Jeu courant':'#e67e22'};
 export default function App(){
 const [seances,setSeances]=useState<Seance[]>(()=>{const s=localStorage.getItem('rugby-seances');return s?JSON.parse(s):[]});
-const [vue,setVue]=useState<'planning'|'form'|'detail'|'tactique'|'terrain'|'effectif'>('planning');
+const [vue,setVue]=useState<'planning'|'form'|'detail'|'tactique'|'terrain'|'effectif'|'cycle'>('planning');
 const [sel,setSel]=useState<Seance|null>(null);
 const [edit,setEdit]=useState(false);
 const [form,setForm]=useState({date:'',heure:'18:00',duree:90,categorie:'U18',genre:'Féminines',objectif:'Jeu courant',notes:'',exercices:[{titre:'',duree:15,description:''}] as Exercice[],schemaVisuelId:'',schemaVisuelNom:''});
@@ -32,6 +33,7 @@ const hdr={backgroundColor:'#1a5276',color:'white',padding:16,borderRadius:10,ma
 if(vue==='tactique') return <Tactique onRetour={()=>setVue('planning')}/>;
 if(vue==='terrain') return <Terrain onRetour={()=>setVue('planning')}/>;
 if(vue==='effectif') return <Effectif onRetour={()=>setVue('planning')}/>;
+if(vue==='cycle') return <Cycle onRetour={()=>setVue('planning')}/>;
 if(vue==='detail'&&sel){return(<div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
 <div style={hdr}><h2 style={{margin:0}}>🏉 Détail de la séance</h2></div>
 <div style={card}>
@@ -108,6 +110,7 @@ return(<div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding
 <button style={btn('#2d8a4e')} onClick={()=>setVue('tactique')}>🏟 Tactiques</button>
 <button style={btn('#27ae60')} onClick={()=>setVue('terrain')}>🏋️ Séance visuelle</button>
 <button style={btn('#8e44ad')} onClick={()=>setVue('effectif')}>👥 Effectif</button>
+<button style={btn('#16a085')} onClick={()=>setVue('cycle')}>📅 Cycles</button>
 </div>
 {seances.length===0?(<div style={{...card,textAlign:'center',color:'#888',padding:40}}><p style={{fontSize:40}}>📋</p><p>Aucune séance planifiée.<br/>Crée ta première séance !</p></div>):
 [...seances].sort((a,b)=>a.date.localeCompare(b.date)).map(sc=>(<div key={sc.id} style={{...card,borderLeft:`5px solid ${C[sc.objectif]||'#888'}`,cursor:'pointer'}} onClick={()=>{setSel(sc);setVue('detail')}}>
