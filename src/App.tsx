@@ -22,7 +22,7 @@ const [choixSchemaOuv,setChoixSchemaOuv]=useState(false);
 const save=(s:Seance[])=>{setSeances(s);localStorage.setItem('rugby-seances',JSON.stringify(s))};
 const submit=()=>{if(edit&&sel){save(seances.map(s=>s.id===sel.id?{...form,id:s.id}:s))}else{save([...seances,{...form,id:Date.now().toString()}])};setVue('planning');setEdit(false);setSel(null);setForm({date:'',heure:'18:00',duree:90,categorie:'U18',genre:'Féminines',theme:'Jeu courant',notes:'',comportementAttendu:'',evolution:'',exercices:[{titre:'',duree:15,description:''}],schemaVisuelId:'',schemaVisuelNom:''})};
 const del=(id:string)=>{save(seances.filter(s=>s.id!==id));setVue('planning')};
-const startEdit=(sc:Seance)=>{setForm({date:sc.date,heure:sc.heure,duree:sc.duree,categorie:sc.categorie,genre:sc.genre,theme:sc.theme,notes:sc.notes,exercices:sc.exercices});setSel(sc);setEdit(true);setVue('form')};
+const startEdit=(sc:Seance)=>{setForm({date:sc.date,heure:sc.heure,duree:sc.duree,categorie:sc.categorie,genre:sc.genre,theme:sc.theme,notes:sc.notes,comportementAttendu:sc.comportementAttendu||'',evolution:sc.evolution||'',exercices:sc.exercices,schemaVisuelId:sc.schemaVisuelId||'',schemaVisuelNom:sc.schemaVisuelNom||''});setSel(sc);setEdit(true);setVue('form')};
 const majEx=(i:number,k:keyof Exercice,v:string|number|undefined)=>{const e=[...form.exercices];e[i]={...e[i],[k]:v};setForm(f=>({...f,exercices:e}))};
 const inp={width:'100%',padding:10,borderRadius:8,border:'1px solid #ddd',marginBottom:10,fontSize:14,boxSizing:'border-box' as const};
 const btn=(c:string)=>({backgroundColor:c,color:'white',border:'none',padding:'10px 18px',borderRadius:8,cursor:'pointer',fontWeight:'bold',fontSize:14} as React.CSSProperties);
