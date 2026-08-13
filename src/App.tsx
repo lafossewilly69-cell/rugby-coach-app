@@ -9,20 +9,20 @@ const CATEGORIES = ['U6','U8','U10','U12','U14','U16','U18','Seniors','Vétéran
 const GENRES = ['Féminines','Masculins','Mixte'];
 const OBJECTIFS = ['Attaque','Défense','Touche','Mêlée','Jeu au pied','Condition physique','Jeu courant'];
 type Exercice = {titre:string;duree:number;description:string;schemaVisuelId?:string;schemaVisuelNom?:string};
-type Seance = {id:string;date:string;heure:string;duree:number;categorie:string;genre:string;objectif:string;exercices:Exercice[];notes:string;schemaVisuelId?:string;schemaVisuelNom?:string};
+type Seance = {id:string;date:string;heure:string;duree:number;categorie:string;genre:string;theme:string;exercices:Exercice[];notes:string;comportementAttendu?:string;evolution?:string;schemaVisuelId?:string;schemaVisuelNom?:string};
 const C:Record<string,string>={'Attaque':'#e74c3c','Défense':'#3498db','Touche':'#2ecc71','Mêlée':'#9b59b6','Jeu au pied':'#f39c12','Condition physique':'#1abc9c','Jeu courant':'#e67e22'};
 export default function App(){
 const [seances,setSeances]=useState<Seance[]>(()=>{const s=localStorage.getItem('rugby-seances');return s?JSON.parse(s):[]});
 const [vue,setVue]=useState<'planning'|'form'|'detail'|'tactique'|'terrain'|'effectif'|'cycle'>('planning');
 const [sel,setSel]=useState<Seance|null>(null);
 const [edit,setEdit]=useState(false);
-const [form,setForm]=useState({date:'',heure:'18:00',duree:90,categorie:'U18',genre:'Féminines',objectif:'Jeu courant',notes:'',exercices:[{titre:'',duree:15,description:''}] as Exercice[],schemaVisuelId:'',schemaVisuelNom:''});
+const [form,setForm]=useState({date:'',heure:'18:00',duree:90,categorie:'U18',genre:'Féminines',theme:'Jeu courant',notes:'',exercices:[{titre:'',duree:15,description:''}] as Exercice[],schemaVisuelId:'',schemaVisuelNom:''});
 const [schemasVisuels,setSchemasVisuels]=useState<{id:string,nom:string,elements:any[]}[]>(()=>{const s=localStorage.getItem('rugby-terrains');return s?JSON.parse(s):[];});
 const [choixSchemaOuv,setChoixSchemaOuv]=useState(false);
 const save=(s:Seance[])=>{setSeances(s);localStorage.setItem('rugby-seances',JSON.stringify(s))};
-const submit=()=>{if(edit&&sel){save(seances.map(s=>s.id===sel.id?{...form,id:s.id}:s))}else{save([...seances,{...form,id:Date.now().toString()}])};setVue('planning');setEdit(false);setSel(null);setForm({date:'',heure:'18:00',duree:90,categorie:'U18',genre:'Féminines',objectif:'Jeu courant',notes:'',exercices:[{titre:'',duree:15,description:''}]})};
+const submit=()=>{if(edit&&sel){save(seances.map(s=>s.id===sel.id?{...form,id:s.id}:s))}else{save([...seances,{...form,id:Date.now().toString()}])};setVue('planning');setEdit(false);setSel(null);setForm({date:'',heure:'18:00',duree:90,categorie:'U18',genre:'Féminines',theme:'Jeu courant',notes:'',exercices:[{titre:'',duree:15,description:''}]})};
 const del=(id:string)=>{save(seances.filter(s=>s.id!==id));setVue('planning')};
-const startEdit=(sc:Seance)=>{setForm({date:sc.date,heure:sc.heure,duree:sc.duree,categorie:sc.categorie,genre:sc.genre,objectif:sc.objectif,notes:sc.notes,exercices:sc.exercices});setSel(sc);setEdit(true);setVue('form')};
+const startEdit=(sc:Seance)=>{setForm({date:sc.date,heure:sc.heure,duree:sc.duree,categorie:sc.categorie,genre:sc.genre,theme:sc.theme,notes:sc.notes,exercices:sc.exercices});setSel(sc);setEdit(true);setVue('form')};
 const majEx=(i:number,k:keyof Exercice,v:string|number|undefined)=>{const e=[...form.exercices];e[i]={...e[i],[k]:v};setForm(f=>({...f,exercices:e}))};
 const inp={width:'100%',padding:10,borderRadius:8,border:'1px solid #ddd',marginBottom:10,fontSize:14,boxSizing:'border-box' as const};
 const btn=(c:string)=>({backgroundColor:c,color:'white',border:'none',padding:'10px 18px',borderRadius:8,cursor:'pointer',fontWeight:'bold',fontSize:14} as React.CSSProperties);
@@ -37,10 +37,10 @@ if(vue==='cycle') return <Cycle onRetour={()=>setVue('planning')}/>;
 if(vue==='detail'&&sel){return(<div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
 <div style={hdr}><h2 style={{margin:0}}>🏉 Détail de la séance</h2></div>
 <div style={card}>
-<div style={{display:'flex',gap:8,flexWrap:'wrap'}}><span style={badge(C[sel.objectif]||'#888')}>{sel.objectif}</span><span style={badge('#1a5276')}>{sel.categorie} {sel.genre}</span></div>
+<div style={{display:'flex',gap:8,flexWrap:'wrap'}}><span style={badge(C[sel.theme]||'#888')}>{sel.theme}</span><span style={badge('#1a5276')}>{sel.categorie} {sel.genre}</span></div>
 <h3>{sel.date} à {sel.heure} — {sel.duree} min</h3>
 <h4>Exercices</h4>
-{sel.exercices.map((ex,i)=>(<div key={i} style={{...card,borderLeft:`4px solid ${C[sel.objectif]||'#888'}`}}><strong>{ex.titre||'(sans titre)'}</strong> — {ex.duree} min<p style={{margin:'6px 0 0',color:'#555'}}>{ex.description}</p>
+{sel.exercices.map((ex,i)=>(<div key={i} style={{...card,borderLeft:`4px solid ${C[sel.theme]||'#888'}`}}><strong>{ex.titre||'(sans titre)'}</strong> — {ex.duree} min<p style={{margin:'6px 0 0',color:'#555'}}>{ex.description}</p>
 {ex.schemaVisuelId&&(()=>{const sv=JSON.parse(localStorage.getItem('rugby-terrains')||'[]').find((s:any)=>s.id===ex.schemaVisuelId);return sv?<MiniTerrain elements={sv.elements} onOuvrir={()=>setVue('terrain')}/>:null;})()}</div>))}
 {sel.notes&&<><h4>Notes</h4><p style={{color:'#555'}}>{sel.notes}</p></>}
 {sel.schemaVisuelId&&(()=>{
@@ -67,7 +67,7 @@ if(vue==='form'){return(<div style={{fontFamily:'sans-serif',maxWidth:800,margin
 <div style={{flex:1,minWidth:140}}><label style={lbl}>Heure</label><input style={inp} type="time" value={form.heure} onChange={e=>setForm(f=>({...f,heure:e.target.value}))}/></div>
 <div style={{flex:1,minWidth:140}}><label style={lbl}>Durée (min)</label><input style={inp} type="number" value={form.duree} onChange={e=>setForm(f=>({...f,duree:Number(e.target.value)}))}/></div>
 </div>
-<label style={lbl}>Objectif</label><select style={inp} value={form.objectif} onChange={e=>setForm(f=>({...f,objectif:e.target.value}))}>{OBJECTIFS.map(o=><option key={o}>{o}</option>)}</select>
+<label style={lbl}>Thème</label><select style={inp} value={form.theme} onChange={e=>setForm(f=>({...f,theme:e.target.value}))}>{OBJECTIFS.map(o=><option key={o}>{o}</option>)}</select>
 <h4>Exercices</h4>
 {form.exercices.map((ex,i)=>(<div key={i} style={{...card,backgroundColor:'#f9f9f9'}}>
 <div style={{display:'flex',justifyContent:'space-between'}}><strong>Exercice {i+1}</strong>{form.exercices.length>1&&<button style={{...btn('#e74c3c'),padding:'4px 10px'}} onClick={()=>setForm(f=>({...f,exercices:f.exercices.filter((_,j)=>j!==i)}))}>✕</button>}</div>
@@ -89,6 +89,8 @@ if(vue==='form'){return(<div style={{fontFamily:'sans-serif',maxWidth:800,margin
 </div>))}
 <button style={{...btn('#2ecc71'),marginBottom:12}} onClick={()=>setForm(f=>({...f,exercices:[...f.exercices,{titre:'',duree:15,description:''}]}))}>+ Exercice</button>
 <label style={lbl}>Notes</label><textarea style={{...inp,height:80}} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))}/>
+          <label style={lbl}>Comportement attendu</label><textarea style={{...inp,height:80}} value={form.comportementAttendu||''} onChange={e=>setForm(f=>({...f,comportementAttendu:e.target.value}))}/>
+          <label style={lbl}>Évolution</label><textarea style={{...inp,height:80}} value={form.evolution||''} onChange={e=>setForm(f=>({...f,evolution:e.target.value}))}/>
 <label style={lbl}>Schéma visuel associé</label>
 <div style={{marginBottom:10}}>
 {schemasVisuels.length===0?(<p style={{color:'#aaa',fontSize:13}}>Aucun schéma visuel sauvegardé. Crée-en un dans Séance visuelle !</p>):(
@@ -113,10 +115,10 @@ return(<div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding
 <button style={btn('#16a085')} onClick={()=>setVue('cycle')}>📅 Cycles</button>
 </div>
 {seances.length===0?(<div style={{...card,textAlign:'center',color:'#888',padding:40}}><p style={{fontSize:40}}>📋</p><p>Aucune séance planifiée.<br/>Crée ta première séance !</p></div>):
-[...seances].sort((a,b)=>a.date.localeCompare(b.date)).map(sc=>(<div key={sc.id} style={{...card,borderLeft:`5px solid ${C[sc.objectif]||'#888'}`,cursor:'pointer'}} onClick={()=>{setSel(sc);setVue('detail')}}>
+[...seances].sort((a,b)=>a.date.localeCompare(b.date)).map(sc=>(<div key={sc.id} style={{...card,borderLeft:`5px solid ${C[sc.theme]||'#888'}`,cursor:'pointer'}} onClick={()=>{setSel(sc);setVue('detail')}}>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:6}}>
 <div><strong style={{fontSize:16}}>{sc.date} à {sc.heure}</strong><span style={{color:'#777',marginLeft:8}}>{sc.duree} min</span></div>
-<span style={badge(C[sc.objectif]||'#888')}>{sc.objectif}</span></div>
+<span style={badge(C[sc.theme]||'#888')}>{sc.theme}</span></div>
 <div style={{marginTop:8,display:'flex',gap:6,flexWrap:'wrap'}}><span style={badge('#1a5276')}>{sc.categorie} {sc.genre}</span><span style={{color:'#777',fontSize:13}}>{sc.exercices.length} exercice(s)</span></div>
 </div>))}
 </div>)}
