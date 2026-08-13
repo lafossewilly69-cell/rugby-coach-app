@@ -16,11 +16,11 @@ const [seances,setSeances]=useState<Seance[]>(()=>{const s=localStorage.getItem(
 const [vue,setVue]=useState<'planning'|'form'|'detail'|'tactique'|'terrain'|'effectif'|'cycle'>('planning');
 const [sel,setSel]=useState<Seance|null>(null);
 const [edit,setEdit]=useState(false);
-const [form,setForm]=useState({date:'',heure:'18:00',duree:90,categorie:'U18',genre:'Féminines',theme:'Jeu courant',notes:'',exercices:[{titre:'',duree:15,description:''}] as Exercice[],schemaVisuelId:'',schemaVisuelNom:''});
+const [form,setForm]=useState({date:'',heure:'18:00',duree:90,categorie:'U18',genre:'Féminines',theme:'Jeu courant',notes:'',comportementAttendu:'',evolution:'',exercices:[{titre:'',duree:15,description:''}] as Exercice[],schemaVisuelId:'',schemaVisuelNom:''});
 const [schemasVisuels,setSchemasVisuels]=useState<{id:string,nom:string,elements:any[]}[]>(()=>{const s=localStorage.getItem('rugby-terrains');return s?JSON.parse(s):[];});
 const [choixSchemaOuv,setChoixSchemaOuv]=useState(false);
 const save=(s:Seance[])=>{setSeances(s);localStorage.setItem('rugby-seances',JSON.stringify(s))};
-const submit=()=>{if(edit&&sel){save(seances.map(s=>s.id===sel.id?{...form,id:s.id}:s))}else{save([...seances,{...form,id:Date.now().toString()}])};setVue('planning');setEdit(false);setSel(null);setForm({date:'',heure:'18:00',duree:90,categorie:'U18',genre:'Féminines',theme:'Jeu courant',notes:'',exercices:[{titre:'',duree:15,description:''}]})};
+const submit=()=>{if(edit&&sel){save(seances.map(s=>s.id===sel.id?{...form,id:s.id}:s))}else{save([...seances,{...form,id:Date.now().toString()}])};setVue('planning');setEdit(false);setSel(null);setForm({date:'',heure:'18:00',duree:90,categorie:'U18',genre:'Féminines',theme:'Jeu courant',notes:'',comportementAttendu:'',evolution:'',exercices:[{titre:'',duree:15,description:''}]})};
 const del=(id:string)=>{save(seances.filter(s=>s.id!==id));setVue('planning')};
 const startEdit=(sc:Seance)=>{setForm({date:sc.date,heure:sc.heure,duree:sc.duree,categorie:sc.categorie,genre:sc.genre,theme:sc.theme,notes:sc.notes,exercices:sc.exercices});setSel(sc);setEdit(true);setVue('form')};
 const majEx=(i:number,k:keyof Exercice,v:string|number|undefined)=>{const e=[...form.exercices];e[i]={...e[i],[k]:v};setForm(f=>({...f,exercices:e}))};
