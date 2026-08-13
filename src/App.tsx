@@ -16,7 +16,7 @@ const [seances,setSeances]=useState<Seance[]>(()=>{const s=localStorage.getItem(
 const [vue,setVue]=useState<'planning'|'form'|'detail'|'tactique'|'terrain'|'effectif'|'cycle'>('planning');
 const [sel,setSel]=useState<Seance|null>(null);
 const [edit,setEdit]=useState(false);
-const [form,setForm]=useState({date:'',heure:'18:00',duree:90,categorie:'U18',genre:'Féminines',theme:'Jeu courant',notes:'',comportementAttendu:'',evolution:'',exercices:[{titre:'',duree:15,description:''}],schemaVisuelId:'',schemaVisuelNom:'' as Exercice[],schemaVisuelId:'',schemaVisuelNom:''});
+const [form,setForm]=useState({date:'',heure:'18:00',duree:90,categorie:'U18',genre:'Féminines',theme:'Jeu courant',notes:'',comportementAttendu:'',evolution:'',exercices:[{titre:'',duree:15,description:''}] as Exercice[],schemaVisuelId:'',schemaVisuelNom:''});
 const [schemasVisuels,setSchemasVisuels]=useState<{id:string,nom:string,elements:any[]}[]>(()=>{const s=localStorage.getItem('rugby-terrains');return s?JSON.parse(s):[];});
 const [choixSchemaOuv,setChoixSchemaOuv]=useState(false);
 const save=(s:Seance[])=>{setSeances(s);localStorage.setItem('rugby-seances',JSON.stringify(s))};
