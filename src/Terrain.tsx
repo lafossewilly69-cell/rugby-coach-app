@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 
 const W = 800, H = 520;
 
+type Fleche = { id: string; x1: number; y1: number; x2: number; y2: number; cibleId?: string; ordre: number; };
 type Element = {
   id: string;
   type: 'joueur'|'adversaire'|'plot_orange'|'plot_rouge'|'plot_jaune'|'plot_bleu'|'plot_vert'|'plot_blanc'|'piquet'|'bouclier'|'boudin'|'ballon'|'cone';
@@ -158,6 +159,12 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [elements, setElements] = useState<Element[]>([]);
   const [outil, setOutil] = useState<string>('deplacer');
+  const [fleches, setFleches] = useState<Fleche[]>([]);
+  const flechesRef = useRef<Fleche[]>([]);
+  useEffect(()=>{flechesRef.current=fleches;},[fleches]);
+  const [prochainOrdre, setProchainOrdre] = useState(1);
+  const [anime, setAnime] = useState(false);
+  const debutFlecheRef = useRef<{x:number,y:number,cibleId?:string}|null>(null);
   const [modalJoueur, setModalJoueur] = useState<{equipe:'joueur'|'adversaire'}|null>(null);
   const [numInput, setNumInput] = useState('');
   const [nomSeance, setNomSeance] = useState('');
@@ -178,6 +185,21 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
     const c=canvas.current;if(!c)return;
     const ctx=c.getContext('2d');if(!ctx)return;
     dessinerTerrain(ctx);
+    flechesRef.current.forEach(f=>{
+      ctx.strokeStyle='#ffeb3b';ctx.lineWidth=2.5;ctx.setLineDash([]);
+      ctx.beginPath();ctx.moveTo(f.x1,f.y1);ctx.lineTo(f.x2,f.y2);ctx.stroke();
+      const angle=Math.atan2(f.y2-f.y1,f.x2-f.x1);
+      ctx.fillStyle='#ffeb3b';
+      ctx.beginPath();ctx.moveTo(f.x2,f.y2);
+      ctx.lineTo(f.x2-12*Math.cos(angle-0.4),f.y2-12*Math.sin(angle-0.4));
+      ctx.lineTo(f.x2-12*Math.cos(angle+0.4),f.y2-12*Math.sin(angle+0.4));
+      ctx.closePath();ctx.fill();
+      const mx=(f.x1*0.3+f.x2*0.7),my=(f.y1*0.3+f.y2*0.7);
+      ctx.beginPath();ctx.arc(mx,my,8,0,Math.PI*2);
+      ctx.fillStyle='#b7950b';ctx.fill();
+      ctx.fillStyle='white';ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(String(f.ordre),mx,my);
+    });
     els.forEach(el=>dessinerElement(ctx,el));
   },[]);
 
@@ -193,6 +215,19 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
 
   const handleStart=(x:number,y:number)=>{
     const o=outilRef.current;
+    if(o==='fleche'){
+      const el=trouverElement(x,y);
+      if(el){
+        const fj=flechesRef.current.filter(f=>f.cibleId===el.id).sort((a,b)=>b.ordre-a.ordre);
+        const last=fj[0];
+        debutFlecheRef.current={x:last?last.x2:el.x,y:last?last.y2:el.y,cibleId:el.id};
+      } else {
+        const pointe=flechesRef.current.find(f=>Math.hypot(x-f.x2,y-f.y2)<18);
+        if(pointe) debutFlecheRef.current={x:pointe.x2,y:pointe.y2,cibleId:pointe.cibleId};
+        else debutFlecheRef.current={x,y};
+      }
+      return;
+    }
     if(o==='deplacer'){
       const el=trouverElement(x,y);
       if(el){dragRef.current=el.id;offsetRef.current={x:x-el.x,y:y-el.y};}
@@ -214,14 +249,23 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
     }
   };
 
-  const handleEnd=()=>{dragRef.current=null;};
+  const handleEnd=(x:number,y:number)=>{
+    if(outilRef.current==='fleche'&&debutFlecheRef.current){
+      if(Math.hypot(x-debutFlecheRef.current.x,y-debutFlecheRef.current.y)>15){
+        const nf:Fleche={id:Date.now().toString(),x1:debutFlecheRef.current.x,y1:debutFlecheRef.current.y,x2:x,y2:y,cibleId:debutFlecheRef.current.cibleId,ordre:prochainOrdre};
+        setFleches(fs=>{const u=[...fs,nf];flechesRef.current=u;draw(elementsRef.current);return u;});
+      }
+      debutFlecheRef.current=null;
+    }
+    dragRef.current=null;
+  };
 
   const onTS=(e:React.TouchEvent)=>{e.preventDefault();const t=e.touches[0];const p=getPos(t.clientX,t.clientY);handleStart(p.x,p.y);};
   const onTM=(e:React.TouchEvent)=>{e.preventDefault();const t=e.touches[0];const p=getPos(t.clientX,t.clientY);handleMove(p.x,p.y);};
-  const onTE=(e:React.TouchEvent)=>{e.preventDefault();handleEnd();};
+  const onTE=(e:React.TouchEvent)=>{e.preventDefault();const t=e.changedTouches[0];const p=getPos(t.clientX,t.clientY);handleEnd(p.x,p.y);};
   const onMD=(e:React.MouseEvent)=>{const p=getPos(e.clientX,e.clientY);handleStart(p.x,p.y);};
   const onMM=(e:React.MouseEvent)=>{const p=getPos(e.clientX,e.clientY);handleMove(p.x,p.y);};
-  const onMU=()=>{handleEnd();};
+  const onMU=(e:React.MouseEvent)=>{const p=getPos(e.clientX,e.clientY);handleEnd(p.x,p.y);};
 
   const ajouterJoueur=()=>{
     if(!modalJoueur||!numInput.trim())return;
@@ -230,6 +274,38 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
     const y=100+(elements.filter(e=>e.type===modalJoueur.equipe).length*38)%380;
     setElements(els=>[...els,{id:Date.now().toString(),type:modalJoueur.equipe,x,y,numero:num}]);
     setModalJoueur(null);setNumInput('');
+  };
+
+  const animer=()=>{
+    if(fleches.length===0||anime)return;
+    setAnime(true);
+    const flechesSnap=[...flechesRef.current];
+    const maxOrdre=Math.max(...flechesSnap.map(f=>f.ordre));
+    const elementsInitiaux=elementsRef.current.map(e=>({...e}));
+    let ordreActuel=1;
+    let cur=elementsInitiaux.map(e=>({...e}));
+    setFleches([]);flechesRef.current=[];draw(elementsRef.current);
+    const etape=()=>{
+      if(ordreActuel>maxOrdre){
+        setElements(elementsInitiaux);elementsRef.current=elementsInitiaux;
+        setFleches(flechesSnap);flechesRef.current=flechesSnap;
+        draw(elementsInitiaux);setAnime(false);return;
+      }
+      const fEtape=flechesSnap.filter(f=>f.ordre===ordreActuel);
+      if(fEtape.length===0){ordreActuel++;etape();return;}
+      let step=0;const steps=40;
+      const iv=setInterval(()=>{
+        step++;const t=step/steps;
+        const newEls=cur.map(el=>{
+          const f=fEtape.find(f=>f.cibleId===el.id);
+          if(f)return {...el,x:f.x1+(f.x2-f.x1)*t,y:f.y1+(f.y2-f.y1)*t};
+          return el;
+        });
+        setElements(newEls);elementsRef.current=newEls;draw(newEls);
+        if(step>=steps){clearInterval(iv);cur=newEls;ordreActuel++;etape();}
+      },20);
+    };
+    etape();
   };
 
   const sauvegarder=()=>{
@@ -287,6 +363,9 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
           <button style={btn('#1a5276',outil==='deplacer')} onClick={()=>setOutil('deplacer')}>✋ Déplacer</button>
           <button style={btn('#e74c3c',outil==='supprimer')} onClick={()=>setOutil('supprimer')}>🗑 Supprimer</button>
+          <button style={btn('#f39c12',outil==='fleche')} onClick={()=>setOutil('fleche')}>🟡 Mouvement</button>
+          <button style={btn('#27ae60')} onClick={()=>{setFleches([]);flechesRef.current=[];draw(elementsRef.current);}}>Effacer flèches</button>
+          <button style={btn('#3498db')} onClick={animer} disabled={anime||fleches.length===0}>▶ Animer</button>
           <button style={btn('#795548')} onClick={()=>{setElements([]);setOutil('deplacer');}}>🔄 Réinitialiser</button>
         </div>
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
@@ -320,6 +399,12 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
             <button style={btn('#555')} onClick={()=>setSauvegardeOuv(false)}>✖</button>
           </div>
         )}
+        <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8,alignItems:'center'}}>
+          <span style={{color:'#aaa',fontSize:11}}>Ordre :</span>
+          {[1,2,3,4,5,6].map(n=>(
+            <button key={n} style={{...btn(prochainOrdre===n?'#f39c12':'#555'),padding:'4px 10px',fontSize:12}} onClick={()=>setProchainOrdre(n)}>{n}</button>
+          ))}
+        </div>
         <div style={{fontSize:11,color:'#aaa',marginBottom:6}}>
           Outil actif : <strong style={{color:'white'}}>{outil}</strong>
           {ACCESSOIRES.find(a=>a.type===outil)&&<span style={{color:'#aaa'}}> — Tape sur le terrain pour poser</span>}
