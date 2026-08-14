@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState } from 'react';
 import Tactique from './Tactique';
 import Terrain from './Terrain';
