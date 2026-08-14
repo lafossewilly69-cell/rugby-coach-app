@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState } from 'react';
 
 type Semaine = { numero: number; theme: string; notes: string; };

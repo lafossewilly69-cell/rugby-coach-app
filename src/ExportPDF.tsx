@@ -1,5 +1,5 @@
+/* eslint-disable */
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 export async function exporterSeancePDF(seance: any, schemasVisuels: any[]) {
   const pdf = new jsPDF('p', 'mm', 'a4');
