@@ -5,10 +5,11 @@ const W = 800, H = 520;
 type Fleche = { id: string; x1: number; y1: number; x2: number; y2: number; cibleId?: string; ordre: number; };
 type Element = {
   id: string;
-  type: 'joueur'|'adversaire'|'plot_orange'|'plot_rouge'|'plot_jaune'|'plot_bleu'|'plot_vert'|'plot_blanc'|'piquet'|'bouclier'|'boudin'|'ballon'|'cone';
+  type: 'joueur'|'adversaire'|'plot_orange'|'plot_rouge'|'plot_jaune'|'plot_bleu'|'plot_vert'|'plot_blanc'|'piquet'|'bouclier'|'boudin'|'ballon'|'cone'|'echelle';
   x: number; y: number;
   numero?: number;
   couleur?: string;
+  rotation?: number;
 };
 
 const PLOTS = [
@@ -25,6 +26,7 @@ const ACCESSOIRES = [
   {type:'bouclier', label:'🟦 Bouclier', couleur:'#2980b9'},
   {type:'boudin', label:'🟫 Boudin', couleur:'#8B4513'},
   {type:'ballon', label:'🏉 Ballon', couleur:'#c8860a'},
+  {type:'echelle', label:'🪜 Échelle', couleur:'#8e44ad'},
 ];
 
 function dessinerTerrain(ctx: CanvasRenderingContext2D) {
@@ -144,6 +146,20 @@ function dessinerElement(ctx: CanvasRenderingContext2D, el: Element) {
       ctx.fillStyle='rgba(255,255,255,0.15)';
       ctx.fillRect(-8,-20,6,40);
       break;
+    case 'echelle':{
+      ctx.save();
+      ctx.rotate(((el.rotation||0)*Math.PI)/180);
+      ctx.strokeStyle='#111';ctx.lineWidth=2;
+      const w=8,h=30,barres=4;
+      ctx.beginPath();ctx.moveTo(-w,-h/2);ctx.lineTo(-w,h/2);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(w,-h/2);ctx.lineTo(w,h/2);ctx.stroke();
+      for(let i=0;i<=barres;i++){
+        const y2=-h/2+i*(h/barres);
+        ctx.beginPath();ctx.moveTo(-w,y2);ctx.lineTo(w,y2);ctx.stroke();
+      }
+      ctx.restore();
+      break;
+    }
     case 'ballon':
       ctx.fillStyle='#c8860a';
       ctx.beginPath();ctx.ellipse(0,0,12,8,Math.PI/6,0,Math.PI*2);
@@ -215,8 +231,9 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
 
   const handleStart=(x:number,y:number)=>{
     const o=outilRef.current;
-    if(o==='fleche'){
-      const el=trouverElement(x,y);
+    if(o==='fleche'||o==='fleche_ballon'){
+      const filtre=o==='fleche_ballon'?(t:string)=>t==='ballon':(t:string)=>t!=='ballon';
+      const el=elementsRef.current.slice().reverse().find(e=>filtre(e.type)&&Math.hypot(e.x-x,e.y-y)<20)||null;
       if(el){
         const fj=flechesRef.current.filter(f=>f.cibleId===el.id).sort((a,b)=>b.ordre-a.ordre);
         const last=fj[0];
@@ -233,7 +250,14 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
       if(el){dragRef.current=el.id;offsetRef.current={x:x-el.x,y:y-el.y};}
     } else if(o==='supprimer'){
       const el=trouverElement(x,y);
-      if(el)setElements(els=>els.filter(e=>e.id!==el.id));
+      if(el){setElements(els=>els.filter(e=>e.id!==el.id));return;}
+      const f=flechesRef.current.find(ff=>{
+        const len=Math.hypot(ff.x2-ff.x1,ff.y2-ff.y1);
+        if(len<1)return false;
+        const d=Math.abs((ff.y2-ff.y1)*x-(ff.x2-ff.x1)*y+ff.x2*ff.y1-ff.y2*ff.x1)/len;
+        return d<15&&Math.hypot(x-ff.x1,y-ff.y1)+Math.hypot(x-ff.x2,y-ff.y2)<len+25;
+      });
+      if(f){setFleches(fs=>{const u=fs.filter(ff=>ff.id!==f.id);flechesRef.current=u;draw(elementsRef.current);return u;});}
     } else if(ACCESSOIRES.map(a=>a.type).includes(o)||PLOTS.map(p=>p.type).includes(o)){
       const nouv:Element={id:Date.now().toString(),type:o as Element['type'],x,y};
       setElements(els=>{const u=[...els,nouv];elementsRef.current=u;draw(u);return u;});
@@ -250,7 +274,7 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
   };
 
   const handleEnd=(x:number,y:number)=>{
-    if(outilRef.current==='fleche'&&debutFlecheRef.current){
+    if((outilRef.current==='fleche'||outilRef.current==='fleche_ballon')&&debutFlecheRef.current){
       if(Math.hypot(x-debutFlecheRef.current.x,y-debutFlecheRef.current.y)>15){
         const nf:Fleche={id:Date.now().toString(),x1:debutFlecheRef.current.x,y1:debutFlecheRef.current.y,x2:x,y2:y,cibleId:debutFlecheRef.current.cibleId,ordre:prochainOrdre};
         setFleches(fs=>{const u=[...fs,nf];flechesRef.current=u;draw(elementsRef.current);return u;});
@@ -363,7 +387,8 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
           <button style={btn('#1a5276',outil==='deplacer')} onClick={()=>setOutil('deplacer')}>✋ Déplacer</button>
           <button style={btn('#e74c3c',outil==='supprimer')} onClick={()=>setOutil('supprimer')}>🗑 Supprimer</button>
-          <button style={btn('#f39c12',outil==='fleche')} onClick={()=>setOutil('fleche')}>🟡 Mouvement</button>
+          <button style={btn('#f39c12',outil==='fleche')} onClick={()=>{outilRef.current='fleche';setOutil('fleche');}}>🟡 Mouvement joueur</button>
+          <button style={btn('#c8860a',outil==='fleche_ballon')} onClick={()=>{outilRef.current='fleche_ballon';setOutil('fleche_ballon');}}>🏉 Mouvement ballon</button>
           <button style={btn('#27ae60')} onClick={()=>{setFleches([]);flechesRef.current=[];draw(elementsRef.current);}}>Effacer flèches</button>
           <button style={btn('#3498db')} onClick={animer} disabled={anime||fleches.length===0}>▶ Animer</button>
           <button style={btn('#795548')} onClick={()=>{setElements([]);setOutil('deplacer');}}>🔄 Réinitialiser</button>
@@ -376,13 +401,13 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
           <span style={{color:'#aaa',fontSize:11,alignSelf:'center'}}>Plots :</span>
           {PLOTS.map(a=>(
-            <button key={a.type} style={btn(a.couleur,outil===a.type)} onClick={()=>setOutil(a.type)}>{a.label}</button>
+            <button key={a.type} style={btn(a.couleur,outil===a.type)} onClick={()=>{outilRef.current=a.type;setOutil(a.type);}}>{a.label}</button>
           ))}
         </div>
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
           <span style={{color:'#aaa',fontSize:11,alignSelf:'center'}}>Accessoires :</span>
           {ACCESSOIRES.filter(a=>!a.type.startsWith('plot_')).map(a=>(
-            <button key={a.type} style={btn(a.couleur,outil===a.type)} onClick={()=>setOutil(a.type)}>{a.label}</button>
+            <button key={a.type} style={btn(a.couleur,outil===a.type)} onClick={()=>{outilRef.current=a.type;setOutil(a.type);}}>{a.label}</button>
           ))}
         </div>
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
@@ -401,9 +426,9 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
         )}
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8,alignItems:'center'}}>
           <span style={{color:'#aaa',fontSize:11}}>Ordre :</span>
-          {[1,2,3,4,5,6].map(n=>(
-            <button key={n} style={{...btn(prochainOrdre===n?'#f39c12':'#555'),padding:'4px 10px',fontSize:12}} onClick={()=>setProchainOrdre(n)}>{n}</button>
-          ))}
+          <button style={{...btn('#555'),padding:'4px 10px',fontSize:14}} onClick={()=>setProchainOrdre(n=>Math.max(1,n-1))}>-</button>
+          <span style={{color:'white',fontWeight:'bold',fontSize:14,padding:'0 8px'}}>{prochainOrdre}</span>
+          <button style={{...btn('#f39c12'),padding:'4px 10px',fontSize:14}} onClick={()=>setProchainOrdre(n=>n+1)}>+</button>
         </div>
         <div style={{fontSize:11,color:'#aaa',marginBottom:6}}>
           Outil actif : <strong style={{color:'white'}}>{outil}</strong>

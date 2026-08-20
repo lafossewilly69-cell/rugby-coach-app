@@ -225,7 +225,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
         setJoueurs(newJ);joueursRef.current=newJ;
         setBallon(newBal);ballonRef.current=newBal;
         draw(newJ,[],newBal);
-        if(step>=steps){clearInterval(iv);curJoueurs=newJ;curBal=newBal;ordreActuel++;setTimeout(animeEtape,200);}
+        if(step>=steps){clearInterval(iv);curJoueurs=newJ;curBal=newBal;ordreActuel++;animeEtape();}
       },20);
     };
     animeEtape();
@@ -317,9 +317,9 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
         </div>
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8,alignItems:'center'}}>
           <span style={{color:'#aaa',fontSize:11}}>Ordre flèche :</span>
-          {[1,2,3,4,5,6].map(n=>(
-            <button key={n} style={btn(prochainOrdreVal===n?'#f39c12':'#444',prochainOrdreVal===n)} onClick={()=>setProchainOrdreVal(n)}>{n}</button>
-          ))}
+          <button style={{...btn('#555'),padding:'4px 10px',fontSize:14}} onClick={()=>setProchainOrdreVal(n=>Math.max(1,n-1))}>-</button>
+          <span style={{color:'#f39c12',fontSize:14,fontWeight:'bold',minWidth:20,textAlign:'center'}}>{prochainOrdreVal}</span>
+          <button style={{...btn('#f39c12'),padding:'4px 10px',fontSize:14}} onClick={()=>setProchainOrdreVal(n=>n+1)}>+</button>
           <span style={{color:'#666',fontSize:10,marginLeft:4}}>| Les flèches du même numéro s'animent ensemble</span>
         </div>
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
