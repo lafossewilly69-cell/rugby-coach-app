@@ -185,7 +185,7 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
   const [numInput, setNumInput] = useState('');
   const [nomSeance, setNomSeance] = useState('');
   const [sauvegardeOuv, setSauvegardeOuv] = useState(false);
-  const [schemas, setSchemas] = useState<{id:string,nom:string,elements:Element[]}[]>(()=>{
+  const [schemas, setSchemas] = useState<{id:string,nom:string,elements:Element[],fleches:Fleche[]}[]>(()=>{
     const s=localStorage.getItem('rugby-terrains');return s?JSON.parse(s):[];
   });
   const [vue, setVue] = useState<'terrain'|'liste'>('terrain');
@@ -334,7 +334,7 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
 
   const sauvegarder=()=>{
     if(!nomSeance.trim())return;
-    const s={id:Date.now().toString(),nom:nomSeance.trim(),elements:[...elementsRef.current]};
+    const s={id:Date.now().toString(),nom:nomSeance.trim(),elements:[...elementsRef.current],fleches:[...flechesRef.current]};
     const nouv=[...schemas,s];
     setSchemas(nouv);localStorage.setItem('rugby-terrains',JSON.stringify(nouv));
     setNomSeance('');setSauvegardeOuv(false);
@@ -353,7 +353,7 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
         <div key={s.id} style={{backgroundColor:'#3a3a3a',borderRadius:8,padding:12,marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <span style={{color:'white',fontWeight:'bold'}}>{s.nom}</span>
           <div style={{display:'flex',gap:6}}>
-            <button style={btn('#2ecc71')} onClick={()=>{setElements(s.elements.map(e=>({...e})));setVue('terrain');}}>📂 Charger</button>
+            <button style={btn('#2ecc71')} onClick={()=>{const els=s.elements.map(e=>({...e}));const fls=(s.fleches||[]).map(f=>({...f}));setElements(els);elementsRef.current=els;setFleches(fls);flechesRef.current=fls;setVue('terrain');}}>📂 Charger</button>
             <button style={btn('#e74c3c')} onClick={()=>{const n=schemas.filter(ss=>ss.id!==s.id);setSchemas(n);localStorage.setItem('rugby-terrains',JSON.stringify(n));}}>🗑</button>
           </div>
         </div>
