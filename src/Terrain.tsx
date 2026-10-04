@@ -1,4 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { db } from './firebase';
+import { collection, doc, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
 
 const W = 800, H = 520;
 
@@ -185,9 +187,14 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
   const [numInput, setNumInput] = useState('');
   const [nomSeance, setNomSeance] = useState('');
   const [sauvegardeOuv, setSauvegardeOuv] = useState(false);
-  const [schemas, setSchemas] = useState<{id:string,nom:string,elements:Element[],fleches:Fleche[]}[]>(()=>{
-    const s=localStorage.getItem('rugby-terrains');return s?JSON.parse(s):[];
-  });
+  const [schemas, setSchemas] = useState<{id:string,nom:string,elements:Element[],fleches:Fleche[]}[]>([]);
+  useEffect(()=>{
+    const unsub=onSnapshot(collection(db,'rugby-terrains'),(snap)=>{
+      const list=snap.docs.map(d=>({id:d.id,...d.data()} as {id:string,nom:string,elements:Element[],fleches:Fleche[]}));
+      setSchemas(list);
+    });
+    return ()=>unsub();
+  },[]);
   const [vue, setVue] = useState<'terrain'|'liste'>('terrain');
 
   const dragRef = useRef<string|null>(null);
@@ -334,9 +341,9 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
 
   const sauvegarder=()=>{
     if(!nomSeance.trim())return;
-    const s={id:Date.now().toString(),nom:nomSeance.trim(),elements:[...elementsRef.current],fleches:[...flechesRef.current]};
-    const nouv=[...schemas,s];
-    setSchemas(nouv);localStorage.setItem('rugby-terrains',JSON.stringify(nouv));
+    const id=Date.now().toString();
+    const s={nom:nomSeance.trim(),elements:[...elementsRef.current],fleches:[...flechesRef.current]};
+    setDoc(doc(db,'rugby-terrains',id),s);
     setNomSeance('');setSauvegardeOuv(false);
   };
 
@@ -354,7 +361,7 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
           <span style={{color:'white',fontWeight:'bold'}}>{s.nom}</span>
           <div style={{display:'flex',gap:6}}>
             <button style={btn('#2ecc71')} onClick={()=>{const els=s.elements.map(e=>({...e}));const fls=(s.fleches||[]).map(f=>({...f}));setElements(els);elementsRef.current=els;setFleches(fls);flechesRef.current=fls;setVue('terrain');}}>📂 Charger</button>
-            <button style={btn('#e74c3c')} onClick={()=>{const n=schemas.filter(ss=>ss.id!==s.id);setSchemas(n);localStorage.setItem('rugby-terrains',JSON.stringify(n));}}>🗑</button>
+            <button style={btn('#e74c3c')} onClick={()=>{deleteDoc(doc(db,'rugby-terrains',s.id));}}>🗑</button>
           </div>
         </div>
       ))}
