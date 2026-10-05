@@ -1,3 +1,4 @@
+import { useCloud } from './useCloud';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 
 type Joueur = { id: string; x: number; y: number; numero: number; equipe: 'nous' | 'eux' };
@@ -61,7 +62,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
   const [fleches, setFleches] = useState<Fleche[]>([]);
   const [outil, setOutil] = useState<'deplacer'|'fleche'|'fleche_ballon'|'supprimer'>('deplacer');
   const [anime, setAnime] = useState(false);
-  const [schemas, setSchemas] = useState<Schema[]>(()=>{const s=localStorage.getItem('rugby-schemas');return s?JSON.parse(s):[];});
+  const [schemas, setSchemas] = useCloud<Schema[]>('rugby-schemas', []);
   const [vue, setVue] = useState<'terrain'|'liste'>('terrain');
   const [nomNouv, setNomNouv] = useState('');
   const [sauvegardeOuv, setSauvegardeOuv] = useState(false);
@@ -245,7 +246,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
     if(!nomNouv.trim())return;
     const s:Schema={id:Date.now().toString(),nom:nomNouv.trim(),joueurs:joueursRef.current.map(j=>({...j})),fleches:[...flechesRef.current],ballon:{...ballonRef.current}};
     const nouv=[...schemas,s];
-    setSchemas(nouv);localStorage.setItem('rugby-schemas',JSON.stringify(nouv));
+    setSchemas(nouv);
     setNomNouv('');setSauvegardeOuv(false);
   };
 
@@ -257,7 +258,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
 
   const supprimerSchema=(id:string)=>{
     const nouv=schemas.filter(s=>s.id!==id);
-    setSchemas(nouv);localStorage.setItem('rugby-schemas',JSON.stringify(nouv));
+    setSchemas(nouv);
   };
 
   const btn=(c:string,actif=false)=>({backgroundColor:actif?'#f39c12':c,color:'white',border:actif?'2px solid white':'2px solid transparent',padding:'7px 10px',borderRadius:8,cursor:'pointer',fontWeight:'bold',fontSize:11} as React.CSSProperties);

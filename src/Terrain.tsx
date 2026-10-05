@@ -343,7 +343,7 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
     if(!nomSeance.trim())return;
     const id=Date.now().toString();
     const s={nom:nomSeance.trim(),elements:[...elementsRef.current],fleches:[...flechesRef.current]};
-    setDoc(doc(db,'rugby-terrains',id),s);
+    setDoc(doc(db,'rugby-terrains',id),JSON.parse(JSON.stringify(s))).catch(e=>alert('Erreur Firestore : '+e.message));
     setNomSeance('');setSauvegardeOuv(false);
   };
 
