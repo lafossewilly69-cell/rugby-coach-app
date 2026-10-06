@@ -1,3 +1,4 @@
+import { useCloud, useTerrains } from './useCloud';
 /* eslint-disable */
 import React, { useState } from 'react';
 import Tactique from './Tactique';
@@ -13,14 +14,14 @@ type Exercice = {titre:string;duree:number;description:string;schemaVisuelId?:st
 type Seance = {id:string;date:string;heure:string;duree:number;categorie:string;genre:string;theme:string;exercices:Exercice[];notes:string;comportementAttendu?:string;evolution?:string;schemaVisuelId?:string;schemaVisuelNom?:string};
 const C:Record<string,string>={'Attaque':'#e74c3c','Défense':'#3498db','Touche':'#2ecc71','Mêlée':'#9b59b6','Jeu au pied':'#f39c12','Condition physique':'#1abc9c','Jeu courant':'#e67e22'};
 export default function App(){
-const [seances,setSeances]=useState<Seance[]>(()=>{const s=localStorage.getItem('rugby-seances');return s?JSON.parse(s):[]});
+const [seances,setSeances]=useCloud<Seance[]>('rugby-seances',[]);
 const [vue,setVue]=useState<'planning'|'form'|'detail'|'tactique'|'terrain'|'effectif'|'cycle'>('planning');
 const [sel,setSel]=useState<Seance|null>(null);
 const [edit,setEdit]=useState(false);
 const [form,setForm]=useState({date:'',heure:'18:00',duree:90,categorie:'U18',genre:'Féminines',theme:'Jeu courant',notes:'',comportementAttendu:'',evolution:'',exercices:[{titre:'',duree:15,description:''}] as Exercice[],schemaVisuelId:'',schemaVisuelNom:''});
-const [schemasVisuels,_setSchemasVisuels]=useState<{id:string,nom:string,elements:any[]}[]>(()=>{const s=localStorage.getItem('rugby-terrains');return s?JSON.parse(s):[];});
+const schemasVisuels=useTerrains();
 const [_choixSchemaOuv,_setChoixSchemaOuv]=useState(false);
-const save=(s:Seance[])=>{setSeances(s);localStorage.setItem('rugby-seances',JSON.stringify(s))};
+const save=(s:Seance[])=>{setSeances(s);};
 const submit=()=>{if(edit&&sel){save(seances.map(s=>s.id===sel.id?{...form,id:s.id}:s))}else{save([...seances,{...form,id:Date.now().toString()}])};setVue('planning');setEdit(false);setSel(null);setForm({date:'',heure:'18:00',duree:90,categorie:'U18',genre:'Féminines',theme:'Jeu courant',notes:'',comportementAttendu:'',evolution:'',exercices:[{titre:'',duree:15,description:''}],schemaVisuelId:'',schemaVisuelNom:''})};
 const del=(id:string)=>{save(seances.filter(s=>s.id!==id));setVue('planning')};
 const startEdit=(sc:Seance)=>{setForm({date:sc.date,heure:sc.heure,duree:sc.duree,categorie:sc.categorie,genre:sc.genre,theme:sc.theme,notes:sc.notes,comportementAttendu:sc.comportementAttendu||'',evolution:sc.evolution||'',exercices:sc.exercices,schemaVisuelId:sc.schemaVisuelId||'',schemaVisuelNom:sc.schemaVisuelNom||''});setSel(sc);setEdit(true);setVue('form')};
@@ -42,10 +43,10 @@ if(vue==='detail'&&sel){return(<div style={{fontFamily:'sans-serif',maxWidth:800
 <h3>{sel.date} à {sel.heure} — {sel.duree} min</h3>
 <h4>Exercices</h4>
 {sel.exercices.map((ex,i)=>(<div key={i} style={{...card,borderLeft:`4px solid ${C[sel.theme]||'#888'}`}}><strong>{ex.titre||'(sans titre)'}</strong> — {ex.duree} min<p style={{margin:'6px 0 0',color:'#555'}}>{ex.description}</p>
-{ex.schemaVisuelId&&(()=>{const sv=JSON.parse(localStorage.getItem('rugby-terrains')||'[]').find((s:any)=>s.id===ex.schemaVisuelId);return sv?<MiniTerrain elements={sv.elements} onOuvrir={()=>setVue('terrain')}/>:null;})()}</div>))}
+{ex.schemaVisuelId&&(()=>{const sv=schemasVisuels.find((s:any)=>s.id===ex.schemaVisuelId);return sv?<MiniTerrain elements={sv.elements} onOuvrir={()=>setVue('terrain')}/>:null;})()}</div>))}
 {sel.notes&&<><h4>Notes</h4><p style={{color:'#555'}}>{sel.notes}</p></>}
 {sel.schemaVisuelId&&(()=>{
-  const sv=JSON.parse(localStorage.getItem('rugby-terrains')||'[]').find((s:any)=>s.id===sel.schemaVisuelId);
+  const sv=schemasVisuels.find((s:any)=>s.id===sel.schemaVisuelId);
   return sv?(<><h4>Schéma visuel : {sv.nom}</h4>
   <MiniTerrain elements={sv.elements} onOuvrir={()=>setVue('terrain')}/>
   </>):null;

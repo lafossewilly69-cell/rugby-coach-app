@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 export function useCloud<T>(key: string, init: T): [T, (v: T) => void] {
@@ -23,4 +23,11 @@ export function useCloud<T>(key: string, init: T): [T, (v: T) => void] {
       .catch(e => alert('Erreur Firestore : ' + e.message));
   };
   return [val, set];
+}
+
+export function useTerrains(): { id: string; nom: string; elements: any[] }[] {
+  const [l, setL] = useState<{ id: string; nom: string; elements: any[] }[]>([]);
+  useEffect(() => onSnapshot(collection(db, 'rugby-terrains'),
+    snap => setL(snap.docs.map(d => ({ ...(d.data() as any), id: d.id })))), []);
+  return l;
 }
