@@ -1,3 +1,4 @@
+import { useCloud } from './useCloud';
 /* eslint-disable */
 import React, { useState } from 'react';
 
@@ -23,15 +24,15 @@ function dateS(dateDebut: string, num: number) {
 }
 
 export default function Cycle({ onRetour }: { onRetour: () => void }) {
-  const [cycles, setCycles] = useState<Cycle[]>(()=>{ const s=localStorage.getItem('rugby-cycles'); return s?JSON.parse(s):[]; });
-  const [themes, setThemes] = useState<string[]>(()=>{ const s=localStorage.getItem('rugby-themes'); return s?JSON.parse(s):THEMES_DEFAUT; });
+  const [cycles, setCycles] = useCloud<Cycle[]>('rugby-cycles', []);
+  const [themes, setThemes] = useCloud<string[]>('rugby-themes', THEMES_DEFAUT);
   const [vue, setVue] = useState<'liste'|'form'|'detail'|'planifier'|'themes'>('liste');
   const [sel, setSel] = useState<Cycle|null>(null);
   const [form, setForm] = useState({nom:'',dateDebut:'',nbSemaines:4,categorie:'U18'});
   const [nouveauTheme, setNouveauTheme] = useState('');
 
-  const saveCycles = (cs: Cycle[]) => { setCycles(cs); localStorage.setItem('rugby-cycles',JSON.stringify(cs)); };
-  const saveThemes = (ts: string[]) => { setThemes(ts); localStorage.setItem('rugby-themes',JSON.stringify(ts)); };
+  const saveCycles = (cs: Cycle[]) => { setCycles(cs);  };
+  const saveThemes = (ts: string[]) => { setThemes(ts);  };
 
   const creerCycle = () => {
     if(!form.nom.trim()||!form.dateDebut) return;
