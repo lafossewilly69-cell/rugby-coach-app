@@ -1,3 +1,4 @@
+import { useCloud } from './useCloud';
 import React, { useState } from 'react';
 
 type Joueuse = {
@@ -37,19 +38,10 @@ const couleurPoste = (poste: string) => {
 };
 
 export default function Effectif({ onRetour }: { onRetour: () => void }) {
-  const [joueuses, setJoueuses] = useState<Joueuse[]>(()=>{
-    const s=localStorage.getItem('rugby-effectif');
-    if(!s) return [];
-    const data = JSON.parse(s);
-    // Migration ancien format
-    return data.map((j:any)=>({
-      ...j,
-      postes: j.postes || (j.poste ? [j.poste] : []),
-    }));
-  });
-  const [equipes, setEquipes] = useState<Equipe[]>(()=>{
-    const s=localStorage.getItem('rugby-equipes');return s?JSON.parse(s):[];
-  });
+  const [joueusesBrut, setJoueusesBrut] = useCloud<any[]>('rugby-effectif', []);
+  const joueuses: Joueuse[] = joueusesBrut.map((j:any)=>({...j, postes: j.postes || (j.poste ? [j.poste] : [])}));
+  const setJoueuses = (js: Joueuse[]) => setJoueusesBrut(js);
+  const [equipes, setEquipes] = useCloud<Equipe[]>('rugby-equipes', []);
   const [onglet, setOnglet] = useState<'effectif'|'equipes'>('effectif');
   const [vue, setVue] = useState<'liste'|'form'|'detail'|'equipe_form'|'equipe_detail'>('liste');
   const [sel, setSel] = useState<Joueuse|null>(null);
@@ -66,8 +58,8 @@ export default function Effectif({ onRetour }: { onRetour: () => void }) {
     finisseurs: Array.from({length:7},(_,i)=>({joueuseId:'',numero:i+16,poste:'Finisseur'})),
   });
 
-  const saveJoueuses = (js: Joueuse[]) => { setJoueuses(js); localStorage.setItem('rugby-effectif',JSON.stringify(js)); };
-  const saveEquipes = (es: Equipe[]) => { setEquipes(es); localStorage.setItem('rugby-equipes',JSON.stringify(es)); };
+  const saveJoueuses = (js: Joueuse[]) => { setJoueuses(js);  };
+  const saveEquipes = (es: Equipe[]) => { setEquipes(es);  };
 
   const submitJoueuse = () => {
     if(!form.nom.trim()||!form.prenom.trim()) return;
