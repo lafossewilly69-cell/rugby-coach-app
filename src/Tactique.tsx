@@ -1,3 +1,4 @@
+import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
 import { useCloud } from './useCloud';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 
@@ -64,6 +65,9 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
   const [fleches, setFleches] = useState<Fleche[]>([]);
   const [outil, setOutil] = useState<'deplacer'|'fleche'|'fleche_ballon'|'supprimer'>('deplacer');
   const [anime, setAnime] = useState(false);
+  const [enreg,setEnreg]=useState(false);
+  const [videoPrete,setVideoPrete]=useState<File|null>(null);
+  const finAnimRef=useRef<(()=>void)|null>(null);
   const [schemas, setSchemas] = useCloud<Schema[]>('rugby-schemas', []);
   const [vue, setVue] = useState<'terrain'|'liste'>('terrain');
   const [nomNouv, setNomNouv] = useState('');
@@ -189,6 +193,60 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
   const onMM=(e:React.MouseEvent)=>{const p=getPos(e.clientX,e.clientY);handleMove(p.x,p.y);};
   const onMU=(e:React.MouseEvent)=>{const p=getPos(e.clientX,e.clientY);handleEnd(p.x,p.y);};
 
+  const partager=async()=>{
+    const c=canvas.current;
+    if(!c||anime||enreg||fleches.length===0)return;
+    const W2=c.width-(c.width%2),H2=c.height-(c.height%2);
+    const VE:any=(window as any).VideoEncoder;
+    let cfg:any=null;
+    if(VE){
+      for(const codec of ['avc1.42001f','avc1.42002a','avc1.4d002a','avc1.640028']){
+        const essai={codec,width:W2,height:H2,bitrate:3000000,framerate:30};
+        try{const s=await VE.isConfigSupported(essai);if(s&&s.supported){cfg=essai;break;}}catch(err){/* suivant */}
+      }
+    }
+    if(!cfg){alert("Ce navigateur ne sait pas créer une vidéo compatible WhatsApp");return;}
+    const muxer=new Muxer({target:new ArrayBufferTarget(),video:{codec:'avc',width:W2,height:H2},fastStart:'in-memory',firstTimestampBehavior:'offset'});
+    const enc=new VE({output:(chunk:any,meta:any)=>muxer.addVideoChunk(chunk,meta),error:(err:any)=>alert('Erreur vidéo : '+err.message)});
+    enc.configure(cfg);
+    const off=document.createElement('canvas');off.width=W2;off.height=H2;
+    const octx=off.getContext('2d');
+    if(!octx)return;
+    let actif=true;
+    let n=0;
+    const t0=performance.now();
+    const boucle=()=>{
+      if(!actif)return;
+      octx.drawImage(c,0,0,W2,H2,0,0,W2,H2);
+      const frame=new (window as any).VideoFrame(off,{timestamp:Math.round((performance.now()-t0)*1000)});
+      enc.encode(frame,{keyFrame:n%30===0});
+      frame.close();
+      n++;
+      requestAnimationFrame(boucle);
+    };
+    setEnreg(true);
+    requestAnimationFrame(boucle);
+    finAnimRef.current=()=>{setTimeout(async()=>{
+      actif=false;
+      try{
+        await enc.flush();enc.close();muxer.finalize();
+        const buf=(muxer.target as any).buffer;
+        setVideoPrete(new File([buf],'tactique.mp4',{type:'video/mp4'}));
+      }catch(err:any){alert('Erreur vidéo : '+err.message);}
+      setEnreg(false);
+    },800);};
+    setTimeout(animer,300);
+  };
+  const envoyer=async()=>{
+    const file=videoPrete;
+    if(!file)return;
+    const nav:any=navigator;
+    try{
+      if(nav.canShare&&nav.canShare({files:[file]})){await nav.share({files:[file],title:'Tactique'});setVideoPrete(null);return;}
+    }catch(e:any){if(e&&e.name==='AbortError')return;}
+    const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;a.click();
+    setVideoPrete(null);
+  };
   const animer=()=>{
     if(fleches.length===0||anime)return;
     setAnime(true);
@@ -211,7 +269,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
         setFleches(flechesSnap);flechesRef.current=flechesSnap;
         draw(joueursInitiaux,flechesSnap,ballonInitial);
         // Flèches remises
-        setAnime(false);return;
+        setAnime(false);if(finAnimRef.current){const fin=finAnimRef.current;finAnimRef.current=null;fin();}return;
       }
       const fEtape=flechesSnap.filter(f=>f.ordre===ordreActuel);
       if(fEtape.length===0){ordreActuel++;animeEtape();return;}
@@ -327,6 +385,9 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
         </div>
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
           <button style={btn('#3498db')} onClick={animer} disabled={anime||fleches.length===0}>▶ Animer</button>
+          {videoPrete
+            ? <button style={btn('#25d366')} onClick={envoyer}>📤 Envoyer la vidéo</button>
+            : <button style={btn('#25d366')} onClick={partager} disabled={anime||enreg||fleches.length===0}>{enreg?'⏺ Enregistrement…':'📤 Partager la tactique'}</button>}
           <button style={btn('#8e44ad')} onClick={()=>setSauvegardeOuv(v=>!v)}>💾 Sauvegarder</button>
           <button style={btn('#16a085')} onClick={()=>setVue('liste')}>📋 Mes schémas ({schemas.length})</button>
           <button style={btn('#555')} onClick={onRetour}>← Retour</button>
