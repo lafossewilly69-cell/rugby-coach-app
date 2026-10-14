@@ -4,7 +4,7 @@ import { collection, doc, onSnapshot, setDoc, deleteDoc } from 'firebase/firesto
 
 const W = 800, H = 520;
 
-type Fleche = { id: string; x1: number; y1: number; x2: number; y2: number; cibleId?: string; ordre: number; };
+type Fleche = { id: string; x1: number; y1: number; x2: number; y2: number; cibleId?: string; estBallon?: boolean; ordre: number; };
 type Element = {
   id: string;
   type: 'joueur'|'adversaire'|'plot_orange'|'plot_rouge'|'plot_jaune'|'plot_bleu'|'plot_vert'|'plot_blanc'|'piquet'|'bouclier'|'boudin'|'ballon'|'cone'|'echelle';
@@ -173,6 +173,8 @@ function dessinerElement(ctx: CanvasRenderingContext2D, el: Element) {
   ctx.restore();
 }
 
+const aSuite=(f:Fleche,fs:Fleche[])=>fs.some(g=>g.id!==f.id&&!!g.estBallon===!!f.estBallon&&Math.hypot(g.x1-f.x2,g.y1-f.y2)<2);
+
 export default function Terrain({ onRetour }: { onRetour: () => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [elements, setElements] = useState<Element[]>([]);
@@ -208,7 +210,7 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
     const c=canvas.current;if(!c)return;
     const ctx=c.getContext('2d');if(!ctx)return;
     dessinerTerrain(ctx);
-    flechesRef.current.forEach(f=>{
+    flechesRef.current.forEach(f=>{ctx.globalAlpha=aSuite(f,flechesRef.current)?0.3:1;
       ctx.strokeStyle='#ffeb3b';ctx.lineWidth=2.5;ctx.setLineDash([]);
       ctx.beginPath();ctx.moveTo(f.x1,f.y1);ctx.lineTo(f.x2,f.y2);ctx.stroke();
       const angle=Math.atan2(f.y2-f.y1,f.x2-f.x1);
@@ -223,7 +225,7 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
       ctx.fillStyle='white';ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText(String(f.ordre),mx,my);
     });
-    els.forEach(el=>dessinerElement(ctx,el));
+    ctx.globalAlpha=1;els.forEach(el=>dessinerElement(ctx,el));
   },[]);
 
   useEffect(()=>{draw(elements);},[elements,draw]);
@@ -242,11 +244,11 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
       const filtre=o==='fleche_ballon'?(t:string)=>t==='ballon':(t:string)=>t!=='ballon';
       const el=elementsRef.current.slice().reverse().find(e=>filtre(e.type)&&Math.hypot(e.x-x,e.y-y)<20)||null;
       if(el){
-        const fj=flechesRef.current.filter(f=>f.cibleId===el.id).sort((a,b)=>b.ordre-a.ordre);
+        const fj=flechesRef.current.filter(f=>f.cibleId===el.id&&!aSuite(f,flechesRef.current)).sort((a,b)=>b.ordre-a.ordre);
         const last=fj[0];
         debutFlecheRef.current={x:last?last.x2:el.x,y:last?last.y2:el.y,cibleId:el.id};
       } else {
-        const pointe=flechesRef.current.find(f=>Math.hypot(x-f.x2,y-f.y2)<18);
+        const pointe=flechesRef.current.filter(f=>!!f.estBallon===(o==='fleche_ballon')&&!aSuite(f,flechesRef.current)&&Math.hypot(x-f.x2,y-f.y2)<20).sort((a,b)=>Math.hypot(x-a.x2,y-a.y2)-Math.hypot(x-b.x2,y-b.y2))[0];
         if(pointe) debutFlecheRef.current={x:pointe.x2,y:pointe.y2,cibleId:pointe.cibleId};
         else debutFlecheRef.current={x,y};
       }
@@ -283,7 +285,7 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
   const handleEnd=(x:number,y:number)=>{
     if((outilRef.current==='fleche'||outilRef.current==='fleche_ballon')&&debutFlecheRef.current){
       if(Math.hypot(x-debutFlecheRef.current.x,y-debutFlecheRef.current.y)>15){
-        const nf:Fleche={id:Date.now().toString(),x1:debutFlecheRef.current.x,y1:debutFlecheRef.current.y,x2:x,y2:y,cibleId:debutFlecheRef.current.cibleId,ordre:prochainOrdre};
+        const nf:Fleche={id:Date.now().toString(),x1:debutFlecheRef.current.x,y1:debutFlecheRef.current.y,x2:x,y2:y,cibleId:debutFlecheRef.current.cibleId,estBallon:outilRef.current==='fleche_ballon',ordre:prochainOrdre};
         setFleches(fs=>{const u=[...fs,nf];flechesRef.current=u;draw(elementsRef.current);return u;});
       }
       debutFlecheRef.current=null;

@@ -55,6 +55,8 @@ const JOUEURS_INIT: Joueur[] = [
   {id:'j15',x:325,y:260,numero:15,equipe:'nous'},
 ];
 
+const aSuite=(f:Fleche,fs:Fleche[])=>fs.some(g=>g.id!==f.id&&!!g.estBallon===!!f.estBallon&&Math.hypot(g.x1-f.x2,g.y1-f.y2)<2);
+
 export default function Tactique({ onRetour }: { onRetour: () => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [joueurs, setJoueurs] = useState<Joueur[]>(JOUEURS_INIT.map(j=>({...j})));
@@ -89,7 +91,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
     const c=canvas.current;if(!c)return;
     const ctx=c.getContext('2d');if(!ctx)return;
     dessinerTerrain(ctx);
-    fs.forEach(f=>{
+    fs.forEach(f=>{ctx.globalAlpha=aSuite(f,fs)?0.3:1;
       ctx.strokeStyle=f.estBallon?'#ff9800':'#ffeb3b';
       ctx.lineWidth=2.5;ctx.setLineDash([]);
       ctx.beginPath();ctx.moveTo(f.x1,f.y1);ctx.lineTo(f.x2,f.y2);ctx.stroke();
@@ -106,7 +108,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
       ctx.fillStyle=f.estBallon?'#e67e22':'#b7950b';ctx.fill();
       ctx.fillStyle='white';ctx.fillText(String(f.ordre),mx,my);
     });
-    js.forEach(j=>{
+    ctx.globalAlpha=1;js.forEach(j=>{
       ctx.beginPath();ctx.arc(j.x,j.y,13,0,Math.PI*2);
       ctx.fillStyle=j.equipe==='nous'?'#1a5276':'#e74c3c';
       ctx.fill();ctx.strokeStyle='white';ctx.lineWidth=1.5;ctx.stroke();
@@ -146,12 +148,12 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
       else if(ballonProche){dragBallonRef.current=true;}
     } else if(o==='fleche'){
       // Chercher pointe de flèche proche
-      const pointe=flechesRef.current.find(f=>Math.hypot(x-f.x2,y-f.y2)<18);
+      const pointe=flechesRef.current.filter(f=>!f.estBallon&&!aSuite(f,flechesRef.current)&&Math.hypot(x-f.x2,y-f.y2)<20).sort((a,b)=>Math.hypot(x-a.x2,y-a.y2)-Math.hypot(x-b.x2,y-b.y2))[0];
       if(pointe){debutRef.current={x:pointe.x2,y:pointe.y2,cibleId:pointe.cibleId,estBallon:pointe.estBallon};}
-      else if(j){const fj=flechesRef.current.filter(f=>f.cibleId===j.id).sort((a,b)=>b.ordre-a.ordre);const last=fj[0];debutRef.current={x:last?last.x2:j.x,y:last?last.y2:j.y,cibleId:j.id};}
+      else if(j){const fj=flechesRef.current.filter(f=>!f.estBallon&&f.cibleId===j.id&&!aSuite(f,flechesRef.current)).sort((a,b)=>b.ordre-a.ordre);const last=fj[0];debutRef.current={x:last?last.x2:j.x,y:last?last.y2:j.y,cibleId:j.id};}
       else debutRef.current={x,y};
     } else if(o==='fleche_ballon'){
-      const fb=flechesRef.current.filter(f=>f.estBallon).sort((a,b)=>b.ordre-a.ordre);const last=fb[0];
+      const fb=flechesRef.current.filter(f=>f.estBallon&&!aSuite(f,flechesRef.current)).sort((a,b)=>b.ordre-a.ordre);const last=fb[0];
       debutRef.current={x:last?last.x2:ballonRef.current.x,y:last?last.y2:ballonRef.current.y,estBallon:true};
     } else if(o==='supprimer'){
       const f=trouverFleche(x,y);
