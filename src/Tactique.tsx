@@ -1,5 +1,7 @@
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
 import { useCloud } from './useCloud';
+import { useClub, texteSur, fondBande } from './club';
+import { IC } from './icones';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 
 type Joueur = { id: string; x: number; y: number; numero: number; equipe: 'nous' | 'eux' };
@@ -65,6 +67,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
   const [fleches, setFleches] = useState<Fleche[]>([]);
   const [outil, setOutil] = useState<'deplacer'|'fleche'|'fleche_ballon'|'supprimer'>('deplacer');
   const [anime, setAnime] = useState(false);
+  const [club]=useClub();
   const [enreg,setEnreg]=useState(false);
   const [videoPrete,setVideoPrete]=useState<File|null>(null);
   const finAnimRef=useRef<(()=>void)|null>(null);
@@ -321,20 +324,27 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
     setSchemas(nouv);
   };
 
-  const btn=(c:string,actif=false)=>({backgroundColor:actif?'#f39c12':c,color:'white',border:actif?'2px solid white':'2px solid transparent',padding:'7px 10px',borderRadius:8,cursor:'pointer',fontWeight:'bold',fontSize:11} as React.CSSProperties);
+  const btn=(c:string,actif=false)=>{
+    const base:React.CSSProperties={display:'inline-flex',alignItems:'center',justifyContent:'center',gap:6,minHeight:44,padding:'0 14px',borderRadius:12,cursor:'pointer',fontFamily:'inherit',fontWeight:600,fontSize:14,border:'1px solid #d9e0dc',backgroundColor:'#ffffff',color:'#14211c'};
+    if(c==='#25d366')return {...base,backgroundColor:'#25d366',borderColor:'#25d366',color:'#073b1d'};
+    if(c==='#e74c3c'||c==='#c0392b')return actif?{...base,backgroundColor:'#b3261e',borderColor:'#b3261e',color:'#ffffff'}:{...base,color:'#b3261e',borderColor:'#e8b4b0'};
+    if(c==='#3498db'||c==='#8e44ad'||c==='#2ecc71')return {...base,backgroundColor:club.couleur2,borderColor:club.couleur2,color:texteSur(club.couleur2)};
+    if(actif)return {...base,backgroundColor:club.couleur,borderColor:club.couleur,color:texteSur(club.couleur)};
+    return base;
+  };
 
   if(vue==='liste')return(
-    <div style={{fontFamily:'sans-serif',maxWidth:820,margin:'0 auto',padding:12,backgroundColor:'#1a1a1a',minHeight:'100vh'}}>
-      <div style={{backgroundColor:'#1a5276',color:'white',padding:14,borderRadius:10,marginBottom:12,textAlign:'center'}}>
-        <h2 style={{margin:0}}>📋 Mes schémas tactiques</h2>
+    <div style={{fontFamily:'sans-serif',maxWidth:820,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
+      <div style={{background:fondBande(club),color:texteSur(club.couleur),padding:'16px 18px',borderRadius:16,marginBottom:12,textAlign:'left'}}>
+        <h2 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:28}}>Mes schémas tactiques</h2>
       </div>
-      <button style={{...btn('#555'),marginBottom:12}} onClick={()=>setVue('terrain')}>← Retour au terrain</button>
-      {schemas.length===0&&<div style={{color:'#aaa',textAlign:'center',padding:40}}>Aucun schéma sauvegardé</div>}
+      <button style={{...btn('#555'),marginBottom:12}} onClick={()=>setVue('terrain')}>{IC.retour}Retour au terrain</button>
+      {schemas.length===0&&<div style={{color:'#5b6b64',textAlign:'center',padding:40}}>Aucun schéma sauvegardé</div>}
       {schemas.map(s=>(
-        <div key={s.id} style={{backgroundColor:'#3a3a3a',borderRadius:8,padding:12,marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <span style={{color:'white',fontWeight:'bold'}}>{s.nom}</span>
+        <div key={s.id} style={{backgroundColor:'#ffffff',border:'1px solid #dde4ea',borderRadius:12,padding:12,marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <span style={{color:'#14211c',fontWeight:'bold'}}>{s.nom}</span>
           <div style={{display:'flex',gap:6}}>
-            <button style={btn('#2ecc71')} onClick={()=>chargerSchema(s)}>📂 Charger</button>
+            <button style={btn('#2ecc71')} onClick={()=>chargerSchema(s)}>{IC.dossier}Charger</button>
             <button style={btn('#e74c3c')} onClick={()=>supprimerSchema(s.id)}>🗑</button>
           </div>
         </div>
@@ -343,71 +353,71 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
   );
 
   return(
-    <div style={{fontFamily:'sans-serif',maxWidth:820,margin:'0 auto',padding:12,backgroundColor:'#1a1a1a',minHeight:'100vh'}}>
-      <div style={{backgroundColor:'#1a5276',color:'white',padding:14,borderRadius:10,marginBottom:12,textAlign:'center'}}>
-        <h2 style={{margin:0}}>🏟 Schéma tactique</h2>
+    <div style={{fontFamily:'sans-serif',maxWidth:820,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
+      <div style={{background:fondBande(club),color:texteSur(club.couleur),padding:'16px 18px',borderRadius:16,marginBottom:12,textAlign:'left'}}>
+        <h2 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:28}}>Schéma tactique</h2>
       </div>
 
       {/* Modal ajout joueur */}
       {modalJoueur&&(
         <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,backgroundColor:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100}}>
-          <div style={{backgroundColor:'#2a2a2a',borderRadius:12,padding:24,minWidth:280,textAlign:'center'}}>
-            <h3 style={{color:'white',margin:'0 0 16px'}}>Numéro du joueur {modalJoueur.equipe==='eux'?'adversaire':'allié'}</h3>
+          <div style={{backgroundColor:'#ffffff',borderRadius:16,padding:24,minWidth:280,textAlign:'center'}}>
+            <h3 style={{color:'#14211c',margin:'0 0 16px'}}>Numéro du joueur {modalJoueur.equipe==='eux'?'adversaire':'allié'}</h3>
             <input autoFocus value={numInput} onChange={e=>setNumInput(e.target.value)}
               onKeyDown={e=>e.key==='Enter'&&ajouterJoueur()}
               placeholder="Ex: 10" type="number" min="1" max="99"
-              style={{width:'100%',padding:12,borderRadius:8,border:'none',fontSize:20,textAlign:'center',marginBottom:16,boxSizing:'border-box' as const}}/>
+              style={{width:'100%',padding:12,borderRadius:8,border:'1px solid #d9e0dc',fontSize:20,textAlign:'center',marginBottom:16,boxSizing:'border-box' as const}}/>
             <div style={{display:'flex',gap:8,justifyContent:'center'}}>
-              <button style={btn(modalJoueur.equipe==='eux'?'#e74c3c':'#1a5276')} onClick={ajouterJoueur}>✅ Ajouter</button>
-              <button style={btn('#555')} onClick={()=>{setModalJoueur(null);setNumInput('');}}>✖ Annuler</button>
+              <button style={btn(modalJoueur.equipe==='eux'?'#e74c3c':'#1a5276')} onClick={ajouterJoueur}>{IC.ok}Ajouter</button>
+              <button style={btn('#555')} onClick={()=>{setModalJoueur(null);setNumInput('');}}>Annuler</button>
             </div>
           </div>
         </div>
       )}
 
-      <div style={{backgroundColor:'#2a2a2a',borderRadius:10,padding:12,marginBottom:12}}>
+      <div style={{backgroundColor:'#ffffff',border:'1px solid #dde4ea',borderRadius:16,padding:12,marginBottom:12}}>
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
-          <button style={btn('#1a5276',outil==='deplacer')} onClick={()=>setOutil('deplacer')}>✋ Déplacer</button>
-          <button style={btn('#f39c12',outil==='fleche')} onClick={()=>setOutil('fleche')}>🟡 Mouvement joueur</button>
-          <button style={btn('#e67e22',outil==='fleche_ballon')} onClick={()=>setOutil('fleche_ballon')}>🏉 Mouvement ballon</button>
-          <button style={btn('#e74c3c',outil==='supprimer')} onClick={()=>setOutil('supprimer')}>🗑 Supprimer</button>
-          <button style={btn('#1a5276')} onClick={()=>setModalJoueur({equipe:'nous'})}>+ Joueur allié</button>
-          <button style={btn('#c0392b')} onClick={()=>setModalJoueur({equipe:'eux'})}>+ Joueur adverse</button>
-          <button style={btn('#27ae60')} onClick={()=>setFleches([])}>Effacer flèches</button>
-          <button style={btn('#795548')} onClick={()=>{setJoueurs(JOUEURS_INIT.map(j=>({...j})));setFleches([]);setBallon({x:205,y:260});}}>🔄 Réinitialiser</button>
+          <button style={btn('#1a5276',outil==='deplacer')} onClick={()=>setOutil('deplacer')}>{IC.deplacer}Déplacer</button>
+          <button style={btn('#f39c12',outil==='fleche')} onClick={()=>setOutil('fleche')}>{IC.fleche}Mouvement joueur</button>
+          <button style={btn('#e67e22',outil==='fleche_ballon')} onClick={()=>setOutil('fleche_ballon')}>{IC.ballon}Mouvement ballon</button>
+          <button style={btn('#e74c3c',outil==='supprimer')} onClick={()=>setOutil('supprimer')}>{IC.supprimer}Supprimer</button>
+          <button style={btn('#1a5276')} onClick={()=>setModalJoueur({equipe:'nous'})}>{IC.plus}Joueur allié</button>
+          <button style={btn('#c0392b')} onClick={()=>setModalJoueur({equipe:'eux'})}>{IC.plus}Joueur adverse</button>
+          <button style={btn('#27ae60')} onClick={()=>setFleches([])}>{IC.effacer}Effacer flèches</button>
+          <button style={btn('#795548')} onClick={()=>{setJoueurs(JOUEURS_INIT.map(j=>({...j})));setFleches([]);setBallon({x:205,y:260});}}>{IC.reset}Réinitialiser</button>
         </div>
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8,alignItems:'center'}}>
-          <span style={{color:'#aaa',fontSize:11}}>Ordre flèche :</span>
+          <span style={{color:'#5b6b64',fontSize:14}}>Ordre flèche :</span>
           <button style={{...btn('#555'),padding:'4px 10px',fontSize:14}} onClick={()=>setProchainOrdreVal(n=>Math.max(1,n-1))}>-</button>
-          <span style={{color:'#f39c12',fontSize:14,fontWeight:'bold',minWidth:20,textAlign:'center'}}>{prochainOrdreVal}</span>
+          <span style={{color:club.couleur,fontSize:18,fontWeight:'bold',minWidth:24,textAlign:'center'}}>{prochainOrdreVal}</span>
           <button style={{...btn('#f39c12'),padding:'4px 10px',fontSize:14}} onClick={()=>setProchainOrdreVal(n=>n+1)}>+</button>
-          <span style={{color:'#666',fontSize:10,marginLeft:4}}>| Les flèches du même numéro s'animent ensemble</span>
+          <span style={{color:'#5b6b64',fontSize:13,marginLeft:4}}>| Les flèches du même numéro s'animent ensemble</span>
         </div>
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
-          <button style={btn('#3498db')} onClick={animer} disabled={anime||fleches.length===0}>▶ Animer</button>
+          <button style={btn('#3498db')} onClick={animer} disabled={anime||fleches.length===0}>{IC.play}Animer</button>
           {videoPrete
-            ? <button style={btn('#25d366')} onClick={envoyer}>📤 Envoyer la vidéo</button>
-            : <button style={btn('#25d366')} onClick={partager} disabled={anime||enreg||fleches.length===0}>{enreg?'⏺ Enregistrement…':'📤 Partager la tactique'}</button>}
-          <button style={btn('#8e44ad')} onClick={()=>setSauvegardeOuv(v=>!v)}>💾 Sauvegarder</button>
-          <button style={btn('#16a085')} onClick={()=>setVue('liste')}>📋 Mes schémas ({schemas.length})</button>
-          <button style={btn('#555')} onClick={onRetour}>← Retour</button>
+            ? <button style={btn('#25d366')} onClick={envoyer}>{IC.partager}Envoyer la vidéo</button>
+            : <button style={btn('#25d366')} onClick={partager} disabled={anime||enreg||fleches.length===0}>{enreg?'Enregistrement…':<>{IC.partager}Partager la tactique</>}</button>}
+          <button style={btn('#8e44ad')} onClick={()=>setSauvegardeOuv(v=>!v)}>{IC.sauver}Sauvegarder</button>
+          <button style={btn('#16a085')} onClick={()=>setVue('liste')}>{IC.liste}Mes schémas ({schemas.length})</button>
+          <button style={btn('#555')} onClick={onRetour}>{IC.retour}Retour</button>
         </div>
         {sauvegardeOuv&&(
           <div style={{display:'flex',gap:8,marginBottom:8,alignItems:'center'}}>
             <input value={nomNouv} onChange={e=>setNomNouv(e.target.value)}
               placeholder="Nom du schéma (ex: Touche offensive 22m)"
-              style={{flex:1,padding:8,borderRadius:8,border:'none',fontSize:13}}/>
-            <button style={btn('#2ecc71')} onClick={sauvegarderSchema}>✅ OK</button>
+              style={{flex:1,padding:10,borderRadius:10,border:'1px solid #d9e0dc',fontSize:15}}/>
+            <button style={btn('#2ecc71')} onClick={sauvegarderSchema}>OK</button>
             <button style={btn('#555')} onClick={()=>setSauvegardeOuv(false)}>✖</button>
           </div>
         )}
-        <div style={{fontSize:11,color:'#aaa',marginBottom:6}}>
+        <div style={{fontSize:13,color:'#5b6b64',marginBottom:8}}>
           🔵 Alliées &nbsp;|&nbsp; 🔴 Adversaires &nbsp;|&nbsp; 🏉 Ballon &nbsp;|&nbsp;
-          Outil : <strong style={{color:'white'}}>{outil==='deplacer'?'Déplacer':outil==='fleche'?'Mouvement joueur':outil==='fleche_ballon'?'Mouvement ballon':'Supprimer'}</strong>
-          &nbsp;| Ordre actuel : <strong style={{color:'#f39c12'}}>{prochainOrdreVal}</strong>
+          Outil : <strong style={{color:'#14211c'}}>{outil==='deplacer'?'Déplacer':outil==='fleche'?'Mouvement joueur':outil==='fleche_ballon'?'Mouvement ballon':'Supprimer'}</strong>
+          &nbsp;| Ordre actuel : <strong style={{color:club.couleur}}>{prochainOrdreVal}</strong>
         </div>
         <canvas ref={canvas} width={W} height={H}
-          style={{width:'100%',borderRadius:8,cursor:outil==='deplacer'?'grab':'crosshair',touchAction:'none',display:'block'}}
+          style={{width:'100%',borderRadius:12,cursor:outil==='deplacer'?'grab':'crosshair',touchAction:'none',display:'block'}}
           onMouseDown={onMD} onMouseMove={onMM} onMouseUp={onMU}
           onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}
         />
