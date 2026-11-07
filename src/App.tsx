@@ -6,6 +6,8 @@ import Terrain from './Terrain';
 import MiniTerrain from './MiniTerrain';
 import Effectif from './Effectif';
 import Cycle from './Cycle';
+import Accueil from './Accueil';
+import Reglages from './Reglages';
 import { exporterSeancePDF } from './ExportPDF';
 const CATEGORIES = ['U6','U8','U10','U12','U14','U16','U18','Seniors','Vétérans'];
 const GENRES = ['Féminines','Masculins','Mixte'];
@@ -15,7 +17,7 @@ type Seance = {id:string;date:string;heure:string;duree:number;categorie:string;
 const C:Record<string,string>={'Attaque':'#e74c3c','Défense':'#3498db','Touche':'#2ecc71','Mêlée':'#9b59b6','Jeu au pied':'#f39c12','Condition physique':'#1abc9c','Jeu courant':'#e67e22'};
 export default function App(){
 const [seances,setSeances]=useCloud<Seance[]>('rugby-seances',[]);
-const [vue,setVue]=useState<'planning'|'form'|'detail'|'tactique'|'terrain'|'effectif'|'cycle'>('planning');
+const [vue,setVue]=useState<'planning'|'form'|'detail'|'tactique'|'terrain'|'effectif'|'cycle'|'reglages'>('planning');
 const [sel,setSel]=useState<Seance|null>(null);
 const [edit,setEdit]=useState(false);
 const [form,setForm]=useState({date:'',heure:'18:00',duree:90,categorie:'U18',genre:'Féminines',theme:'Jeu courant',notes:'',comportementAttendu:'',evolution:'',exercices:[{titre:'',duree:15,description:''}] as Exercice[],schemaVisuelId:'',schemaVisuelNom:''});
@@ -36,6 +38,7 @@ if(vue==='tactique') return <Tactique onRetour={()=>setVue('planning')}/>;
 if(vue==='terrain') return <Terrain onRetour={()=>setVue('planning')}/>;
 if(vue==='effectif') return <Effectif onRetour={()=>setVue('planning')}/>;
 if(vue==='cycle') return <Cycle onRetour={()=>setVue('planning')}/>;
+if(vue==='reglages') return <Reglages onRetour={()=>setVue('planning')}/>;
 if(vue==='detail'&&sel){return(<div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
 <div style={hdr}><h2 style={{margin:0}}>🏉 Détail de la séance</h2></div>
 <div style={card}>
@@ -108,19 +111,5 @@ if(vue==='form'){return(<div style={{fontFamily:'sans-serif',maxWidth:800,margin
 <button style={btn('#555')} onClick={()=>{setVue(edit?'detail':'planning');setEdit(false)}}>✖ Annuler</button>
 </div></div></div>)}
 return(<div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
-<div style={hdr}><h1 style={{margin:0,fontSize:22}}>🏉 Rugby Coach</h1><p style={{margin:'4px 0 0',opacity:0.8,fontSize:13}}>Planning des séances</p></div>
-<div style={{marginBottom:16,display:'flex',gap:8,flexWrap:'wrap'}}>
-<button style={btn('#1a5276')} onClick={()=>{setEdit(false);setVue('form')}}>+ Nouvelle séance</button>
-<button style={btn('#2d8a4e')} onClick={()=>setVue('tactique')}>🏟 Tactiques</button>
-<button style={btn('#27ae60')} onClick={()=>setVue('terrain')}>🏋️ Séance visuelle</button>
-<button style={btn('#8e44ad')} onClick={()=>setVue('effectif')}>👥 Effectif</button>
-<button style={btn('#16a085')} onClick={()=>setVue('cycle')}>📅 Cycles</button>
-</div>
-{seances.length===0?(<div style={{...card,textAlign:'center',color:'#888',padding:40}}><p style={{fontSize:40}}>📋</p><p>Aucune séance planifiée.<br/>Crée ta première séance !</p></div>):
-[...seances].sort((a,b)=>a.date.localeCompare(b.date)).map(sc=>(<div key={sc.id} style={{...card,borderLeft:`5px solid ${C[sc.theme]||'#888'}`,cursor:'pointer'}} onClick={()=>{setSel(sc);setVue('detail')}}>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:6}}>
-<div><strong style={{fontSize:16}}>{sc.date} à {sc.heure}</strong><span style={{color:'#777',marginLeft:8}}>{sc.duree} min</span></div>
-<span style={badge(C[sc.theme]||'#888')}>{sc.theme}</span></div>
-<div style={{marginTop:8,display:'flex',gap:6,flexWrap:'wrap'}}><span style={badge('#1a5276')}>{sc.categorie} {sc.genre}</span><span style={{color:'#777',fontSize:13}}>{sc.exercices.length} exercice(s)</span></div>
-</div>))}
+<Accueil seances={seances} C={C} onNav={(v)=>{setEdit(false);setVue(v);}} onOpen={(id)=>{const sc=seances.find(s=>s.id===id);if(sc){setSel(sc);setVue('detail');}}}/>
 </div>)}
