@@ -8,6 +8,8 @@ import Effectif from './Effectif';
 import Cycle from './Cycle';
 import Accueil from './Accueil';
 import Reglages from './Reglages';
+import { useClub, texteSur, fondBande } from './club';
+import { IC } from './icones';
 import { exporterSeancePDF } from './ExportPDF';
 const CATEGORIES = ['U6','U8','U10','U12','U14','U16','U18','Seniors','Vétérans'];
 const GENRES = ['Féminines','Masculins','Mixte'];
@@ -28,19 +30,20 @@ const submit=()=>{if(edit&&sel){save(seances.map(s=>s.id===sel.id?{...form,id:s.
 const del=(id:string)=>{save(seances.filter(s=>s.id!==id));setVue('planning')};
 const startEdit=(sc:Seance)=>{setForm({date:sc.date,heure:sc.heure,duree:sc.duree,categorie:sc.categorie,genre:sc.genre,theme:sc.theme,notes:sc.notes,comportementAttendu:sc.comportementAttendu||'',evolution:sc.evolution||'',exercices:sc.exercices,schemaVisuelId:sc.schemaVisuelId||'',schemaVisuelNom:sc.schemaVisuelNom||''});setSel(sc);setEdit(true);setVue('form')};
 const majEx=(i:number,k:keyof Exercice,v:string|number|undefined)=>{const e=[...form.exercices];e[i]={...e[i],[k]:v};setForm(f=>({...f,exercices:e}))};
-const inp={width:'100%',padding:10,borderRadius:8,border:'1px solid #ddd',marginBottom:10,fontSize:14,boxSizing:'border-box' as const};
-const btn=(c:string)=>({backgroundColor:c,color:'white',border:'none',padding:'10px 18px',borderRadius:8,cursor:'pointer',fontWeight:'bold',fontSize:14} as React.CSSProperties);
-const badge=(c:string)=>({backgroundColor:c,color:'white',padding:'3px 10px',borderRadius:20,fontSize:12,fontWeight:'bold'} as React.CSSProperties);
-const card={backgroundColor:'white',borderRadius:10,padding:16,marginBottom:12,boxShadow:'0 2px 6px rgba(0,0,0,0.1)'} as React.CSSProperties;
-const lbl={fontWeight:'bold',display:'block',marginBottom:4,color:'#333'} as React.CSSProperties;
-const hdr={backgroundColor:'#1a5276',color:'white',padding:16,borderRadius:10,marginBottom:16,textAlign:'center' as const};
+const [club]=useClub();
+  const inp={width:'100%',padding:'12px',borderRadius:12,border:'1px solid #d9e0dc',marginBottom:10,fontSize:16,boxSizing:'border-box' as const,fontFamily:'inherit',color:'#14211c',background:'#ffffff'};
+const btn=(c:string)=>{const base:React.CSSProperties={display:'inline-flex',alignItems:'center',justifyContent:'center',gap:6,minHeight:44,padding:'0 16px',borderRadius:12,cursor:'pointer',fontFamily:'inherit',fontWeight:600,fontSize:14,border:'1px solid #d9e0dc',backgroundColor:'#ffffff',color:'#14211c'};if(['#e74c3c','#c0392b'].includes(c))return {...base,color:'#b3261e',borderColor:'#e8b4b0'};if(['#555','#666','#777','#95a5a6','#7f8c8d'].includes(c))return base;return {...base,backgroundColor:club.couleur2,borderColor:club.couleur2,color:texteSur(club.couleur2)};};
+const badge=(c:string)=>(c==='#1a5276'?{backgroundColor:club.couleur+'1f',color:club.couleur,padding:'3px 10px',borderRadius:8,fontSize:12,fontWeight:600}:{backgroundColor:c,color:texteSur(c),padding:'3px 10px',borderRadius:8,fontSize:12,fontWeight:600}) as React.CSSProperties;
+const card={backgroundColor:'#ffffff',border:'1px solid #dde4ea',borderRadius:16,padding:16,marginBottom:12} as React.CSSProperties;
+const lbl={fontWeight:600,display:'block',marginBottom:4,color:'#14211c',fontSize:14} as React.CSSProperties;
+const hdr={background:fondBande(club),color:texteSur(club.couleur),padding:'16px 18px',borderRadius:16,marginBottom:16,textAlign:'left' as const};
 if(vue==='tactique') return <Tactique onRetour={()=>setVue('planning')}/>;
 if(vue==='terrain') return <Terrain onRetour={()=>setVue('planning')}/>;
 if(vue==='effectif') return <Effectif onRetour={()=>setVue('planning')}/>;
 if(vue==='cycle') return <Cycle onRetour={()=>setVue('planning')}/>;
 if(vue==='reglages') return <Reglages onRetour={()=>setVue('planning')}/>;
-if(vue==='detail'&&sel){return(<div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
-<div style={hdr}><h2 style={{margin:0}}>🏉 Détail de la séance</h2></div>
+if(vue==='detail'&&sel){return(<div style={{fontFamily:"'Barlow',system-ui,sans-serif",maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
+<div style={hdr}><h2 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:28}}>Détail de la séance</h2></div>
 <div style={card}>
 <div style={{display:'flex',gap:8,flexWrap:'wrap'}}><span style={badge(C[sel.theme]||'#888')}>{sel.theme}</span><span style={badge('#1a5276')}>{sel.categorie} {sel.genre}</span></div>
 <h3>{sel.date} à {sel.heure} — {sel.duree} min</h3>
@@ -55,13 +58,13 @@ if(vue==='detail'&&sel){return(<div style={{fontFamily:'sans-serif',maxWidth:800
   </>):null;
 })()}
 <div style={{display:'flex',gap:8,marginTop:12,flexWrap:'wrap'}}>
-<button style={btn('#f39c12')} onClick={()=>startEdit(sel)}>✏️ Modifier</button>
+<button style={btn('#f39c12')} onClick={()=>startEdit(sel)}>{IC.modifier}Modifier</button>
 <button style={btn('#e74c3c')} onClick={()=>exporterSeancePDF(sel, schemasVisuels)}>📤 PDF</button>
-<button style={btn('#e74c3c')} onClick={()=>del(sel.id)}>🗑 Supprimer</button>
-<button style={btn('#555')} onClick={()=>setVue('planning')}>← Retour</button>
+<button style={btn('#e74c3c')} onClick={()=>del(sel.id)}>{IC.supprimer}Supprimer</button>
+<button style={btn('#555')} onClick={()=>setVue('planning')}>{IC.retour}Retour</button>
 </div></div></div>)}
-if(vue==='form'){return(<div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
-<div style={hdr}><h2 style={{margin:0}}>🏉 {edit?'Modifier':'Nouvelle'} séance</h2></div>
+if(vue==='form'){return(<div style={{fontFamily:"'Barlow',system-ui,sans-serif",maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
+<div style={hdr}><h2 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:28}}>{edit?'Modifier':'Nouvelle'} séance</h2></div>
 <div style={card}>
 <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
 <div style={{flex:1,minWidth:140}}><label style={lbl}>Catégorie</label><select style={inp} value={form.categorie} onChange={e=>setForm(f=>({...f,categorie:e.target.value}))}>{CATEGORIES.map(c=><option key={c}>{c}</option>)}</select></div>
@@ -107,9 +110,9 @@ if(vue==='form'){return(<div style={{fontFamily:'sans-serif',maxWidth:800,margin
 {form.schemaVisuelId&&<p style={{color:'#2ecc71',fontSize:12}}>✅ Schéma associé : {form.schemaVisuelNom}</p>}
 </div>
 <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-<button style={btn('#1a5276')} onClick={submit}>✅ {edit?'Enregistrer les modifications':'Enregistrer'}</button>
-<button style={btn('#555')} onClick={()=>{setVue(edit?'detail':'planning');setEdit(false)}}>✖ Annuler</button>
+<button style={btn('#1a5276')} onClick={submit}>{IC.ok}{edit?'Enregistrer les modifications':'Enregistrer'}</button>
+<button style={btn('#555')} onClick={()=>{setVue(edit?'detail':'planning');setEdit(false)}}>{IC.fermer}Annuler</button>
 </div></div></div>)}
-return(<div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
+return(<div style={{fontFamily:"'Barlow',system-ui,sans-serif",maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
 <Accueil seances={seances} C={C} onNav={(v)=>{setEdit(false);setVue(v);}} onOpen={(id)=>{const sc=seances.find(s=>s.id===id);if(sc){setSel(sc);setVue('detail');}}}/>
 </div>)}
