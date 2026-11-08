@@ -1,4 +1,6 @@
 import { useCloud } from './useCloud';
+import { useClub, texteSur, fondBande } from './club';
+import { IC } from './icones';
 /* eslint-disable */
 import React, { useState } from 'react';
 
@@ -60,24 +62,30 @@ export default function Cycle({ onRetour }: { onRetour: () => void }) {
     setNouveauTheme('');
   };
 
-  const inp = {width:'100%',padding:10,borderRadius:8,border:'1px solid #ddd',marginBottom:10,fontSize:14,boxSizing:'border-box' as const};
-  const lbl = {fontWeight:'bold',display:'block',marginBottom:4,color:'#333'} as React.CSSProperties;
-  const btn = (c:string)=>({backgroundColor:c,color:'white',border:'none',padding:'10px 16px',borderRadius:8,cursor:'pointer',fontWeight:'bold',fontSize:13} as React.CSSProperties);
-  const card = {backgroundColor:'white',borderRadius:10,padding:16,marginBottom:10,boxShadow:'0 2px 6px rgba(0,0,0,0.08)'} as React.CSSProperties;
-  const hdr = {backgroundColor:'#16a085',color:'white',padding:16,borderRadius:10,marginBottom:16,textAlign:'center' as const};
-  const badge = (c:string)=>({backgroundColor:c,color:'white',padding:'3px 10px',borderRadius:20,fontSize:12,fontWeight:'bold',display:'inline-block'} as React.CSSProperties);
+  const [club]=useClub();
+  const inp = {width:'100%',padding:'12px',borderRadius:12,border:'1px solid #d9e0dc',marginBottom:10,fontSize:16,boxSizing:'border-box' as const,fontFamily:'inherit',color:'#14211c',background:'#ffffff'};
+  const lbl = {fontWeight:600,display:'block',marginBottom:4,color:'#14211c',fontSize:14} as React.CSSProperties;
+  const btn = (c:string)=>{
+    const base:React.CSSProperties={display:'inline-flex',alignItems:'center',justifyContent:'center',gap:6,minHeight:44,padding:'0 16px',borderRadius:12,cursor:'pointer',fontFamily:'inherit',fontWeight:600,fontSize:14,border:'1px solid #d9e0dc',backgroundColor:'#ffffff',color:'#14211c'};
+    if(['#e74c3c','#c0392b'].includes(c))return {...base,color:'#b3261e',borderColor:'#e8b4b0'};
+    if(['#555','#666','#777','#95a5a6','#7f8c8d','#8e44ad'].includes(c))return base;
+    return {...base,backgroundColor:club.couleur2,borderColor:club.couleur2,color:texteSur(club.couleur2)};
+  };
+  const card = {backgroundColor:'#ffffff',border:'1px solid #dde4ea',borderRadius:16,padding:16,marginBottom:10} as React.CSSProperties;
+  const hdr = {background:fondBande(club),color:texteSur(club.couleur),padding:'16px 18px',borderRadius:16,marginBottom:16,textAlign:'left' as const};
+  const badge = (c:string)=>(c==='#16a085'?{backgroundColor:club.couleur+'1f',color:club.couleur,padding:'3px 10px',borderRadius:8,fontSize:12,fontWeight:600}:{backgroundColor:c,color:texteSur(c),padding:'3px 10px',borderRadius:8,fontSize:12,fontWeight:600}) as React.CSSProperties;
 
   // GESTION THEMES
   if(vue==='themes') return(
-    <div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
-      <div style={hdr}><h2 style={{margin:0}}>🎨 Gestion des thèmes</h2></div>
+    <div style={{fontFamily:"'Barlow',system-ui,sans-serif",maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
+      <div style={hdr}><h2 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:28}}>Gestion des thèmes</h2></div>
       <div style={card}>
         <div style={{display:'flex',gap:8,marginBottom:16}}>
           <input value={nouveauTheme} onChange={e=>setNouveauTheme(e.target.value)}
             onKeyDown={e=>e.key==='Enter'&&ajouterTheme()}
             placeholder="Nouveau thème (ex: Lineout, Sprint...)"
             style={{...inp,marginBottom:0,flex:1}}/>
-          <button style={btn('#2ecc71')} onClick={ajouterTheme}>+ Ajouter</button>
+          <button style={btn('#2ecc71')} onClick={ajouterTheme}>Ajouter</button>
         </div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
           {themes.map(t=>(
@@ -89,14 +97,14 @@ export default function Cycle({ onRetour }: { onRetour: () => void }) {
           ))}
         </div>
       </div>
-      <button style={btn('#555')} onClick={()=>setVue('liste')}>← Retour</button>
+      <button style={btn('#555')} onClick={()=>setVue('liste')}>{IC.retour}Retour</button>
     </div>
   );
 
   // FORM CREATION
   if(vue==='form') return(
-    <div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
-      <div style={hdr}><h2 style={{margin:0}}>📅 Nouveau cycle</h2></div>
+    <div style={{fontFamily:"'Barlow',system-ui,sans-serif",maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
+      <div style={hdr}><h2 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:28}}>Nouveau cycle</h2></div>
       <div style={card}>
         <label style={lbl}>Nom du cycle</label>
         <input style={inp} value={form.nom} onChange={e=>setForm(f=>({...f,nom:e.target.value}))} placeholder="Ex: Préparation championnat 2025"/>
@@ -117,8 +125,8 @@ export default function Cycle({ onRetour }: { onRetour: () => void }) {
           </div>
         </div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-          <button style={btn('#16a085')} onClick={creerCycle}>✅ Créer et planifier</button>
-          <button style={btn('#555')} onClick={()=>setVue('liste')}>✖ Annuler</button>
+          <button style={btn('#16a085')} onClick={creerCycle}>{IC.ok}Créer et planifier</button>
+          <button style={btn('#555')} onClick={()=>setVue('liste')}>{IC.fermer}Annuler</button>
         </div>
       </div>
     </div>
@@ -126,13 +134,13 @@ export default function Cycle({ onRetour }: { onRetour: () => void }) {
 
   // PLANIFICATION SEMAINES
   if(vue==='planifier'&&sel) return(
-    <div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
+    <div style={{fontFamily:"'Barlow',system-ui,sans-serif",maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
       <div style={hdr}>
-        <h2 style={{margin:0}}>📅 {sel.nom}</h2>
+        <h2 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:28}}>{sel.nom}</h2>
         <p style={{margin:'4px 0 0',opacity:0.8,fontSize:13}}>{sel.nbSemaines} semaines — {sel.categorie}</p>
       </div>
       <div style={card}>
-        <h3 style={{margin:'0 0 10px',color:'#16a085'}}>Vue d'ensemble</h3>
+        <h3 style={{margin:'0 0 10px',color:club.couleur}}>Vue d'ensemble</h3>
         <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
           {sel.semaines.map(s=>(
             <div key={s.numero} style={{width:65,minHeight:65,borderRadius:8,backgroundColor:s.theme?couleur(s.theme):'#ecf0f1',padding:6,textAlign:'center' as const}}>
@@ -170,15 +178,15 @@ export default function Cycle({ onRetour }: { onRetour: () => void }) {
             onChange={e=>majSemaine(s.numero,'notes',e.target.value)}/>
         </div>
       ))}
-      <button style={btn('#16a085')} onClick={()=>setVue('liste')}>✅ Terminer</button>
+      <button style={btn('#16a085')} onClick={()=>setVue('liste')}>{IC.ok}Terminer</button>
     </div>
   );
 
   // DETAIL
   if(vue==='detail'&&sel) return(
-    <div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
+    <div style={{fontFamily:"'Barlow',system-ui,sans-serif",maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
       <div style={hdr}>
-        <h2 style={{margin:0}}>📅 {sel.nom}</h2>
+        <h2 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:28}}>{sel.nom}</h2>
         <p style={{margin:'4px 0 0',opacity:0.8,fontSize:13}}>{sel.nbSemaines} semaines — {sel.categorie}</p>
       </div>
       <div style={card}>
@@ -203,24 +211,24 @@ export default function Cycle({ onRetour }: { onRetour: () => void }) {
         </div>
       ))}
       <div style={{display:'flex',gap:8,marginTop:8,flexWrap:'wrap'}}>
-        <button style={btn('#f39c12')} onClick={()=>setVue('planifier')}>✏️ Modifier</button>
-        <button style={btn('#e74c3c')} onClick={()=>{saveCycles(cycles.filter(c=>c.id!==sel.id));setVue('liste');}}>🗑 Supprimer</button>
-        <button style={btn('#555')} onClick={()=>setVue('liste')}>← Retour</button>
+        <button style={btn('#f39c12')} onClick={()=>setVue('planifier')}>{IC.modifier}Modifier</button>
+        <button style={btn('#e74c3c')} onClick={()=>{saveCycles(cycles.filter(c=>c.id!==sel.id));setVue('liste');}}>{IC.supprimer}Supprimer</button>
+        <button style={btn('#555')} onClick={()=>setVue('liste')}>{IC.retour}Retour</button>
       </div>
     </div>
   );
 
   // LISTE
   return(
-    <div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
+    <div style={{fontFamily:"'Barlow',system-ui,sans-serif",maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
       <div style={hdr}>
-        <h1 style={{margin:0,fontSize:22}}>📅 Cycles d'entraînement</h1>
+        <h1 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:28}}>Cycles d'entraînement</h1>
         <p style={{margin:'4px 0 0',opacity:0.8,fontSize:13}}>Planifie tes thèmes sur plusieurs semaines</p>
       </div>
       <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
-        <button style={btn('#16a085')} onClick={()=>setVue('form')}>+ Nouveau cycle</button>
-        <button style={btn('#8e44ad')} onClick={()=>setVue('themes')}>🎨 Gérer les thèmes</button>
-        <button style={btn('#555')} onClick={onRetour}>← Retour</button>
+        <button style={btn('#16a085')} onClick={()=>setVue('form')}>Nouveau cycle</button>
+        <button style={btn('#8e44ad')} onClick={()=>setVue('themes')}>{IC.liste}Gérer les thèmes</button>
+        <button style={btn('#555')} onClick={onRetour}>{IC.retour}Retour</button>
       </div>
       {cycles.length===0?(
         <div style={{...card,textAlign:'center',color:'#888',padding:40}}>
@@ -228,7 +236,7 @@ export default function Cycle({ onRetour }: { onRetour: () => void }) {
           <p>Aucun cycle planifié.<br/>Crée ton premier cycle !</p>
         </div>
       ):cycles.map(c=>(
-        <div key={c.id} style={{...card,cursor:'pointer',borderLeft:'5px solid #16a085'}} onClick={()=>{setSel(c);setVue('detail');}}>
+        <div key={c.id} style={{...card,cursor:'pointer',borderLeft:'5px solid '+club.couleur}} onClick={()=>{setSel(c);setVue('detail');}}>
           <strong style={{fontSize:16}}>{c.nom}</strong>
           <div style={{display:'flex',gap:6,marginTop:6,flexWrap:'wrap'}}>
             <span style={badge('#16a085')}>{c.categorie}</span>
