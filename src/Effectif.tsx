@@ -1,4 +1,6 @@
 import { useCloud } from './useCloud';
+import { useClub, texteSur, fondBande } from './club';
+import { IC } from './icones';
 import React, { useState } from 'react';
 
 type Joueuse = {
@@ -93,17 +95,23 @@ export default function Effectif({ onRetour }: { onRetour: () => void }) {
     .filter(j=>filtrePoste===''||j.postes.includes(filtrePoste))
     .sort((a,b)=>a.nom.localeCompare(b.nom));
 
-  const inp = {width:'100%',padding:10,borderRadius:8,border:'1px solid #ddd',marginBottom:10,fontSize:14,boxSizing:'border-box' as const};
-  const lbl = {fontWeight:'bold',display:'block',marginBottom:4,color:'#333'} as React.CSSProperties;
-  const btn = (c:string,sm=false)=>({backgroundColor:c,color:'white',border:'none',padding:sm?'6px 10px':'10px 16px',borderRadius:8,cursor:'pointer',fontWeight:'bold',fontSize:sm?11:13} as React.CSSProperties);
-  const card = {backgroundColor:'white',borderRadius:10,padding:16,marginBottom:10,boxShadow:'0 2px 6px rgba(0,0,0,0.08)'} as React.CSSProperties;
-  const hdr = {backgroundColor:'#8e44ad',color:'white',padding:16,borderRadius:10,marginBottom:16,textAlign:'center' as const};
-  const badge = (c:string)=>({backgroundColor:c,color:'white',padding:'3px 10px',borderRadius:20,fontSize:12,fontWeight:'bold'} as React.CSSProperties);
+  const [club]=useClub();
+  const inp = {width:'100%',padding:'12px',borderRadius:12,border:'1px solid #d9e0dc',marginBottom:10,fontSize:16,boxSizing:'border-box' as const,fontFamily:'inherit',color:'#14211c',background:'#ffffff'};
+  const lbl = {fontWeight:600,display:'block',marginBottom:4,color:'#14211c',fontSize:14} as React.CSSProperties;
+  const btn = (c:string,sm=false)=>{
+    const base:React.CSSProperties={display:'inline-flex',alignItems:'center',justifyContent:'center',gap:6,minHeight:sm?36:44,padding:sm?'0 10px':'0 16px',borderRadius:12,cursor:'pointer',fontFamily:'inherit',fontWeight:600,fontSize:sm?13:14,border:'1px solid #d9e0dc',backgroundColor:'#ffffff',color:'#14211c'};
+    if(['#e74c3c','#c0392b'].includes(c))return {...base,color:'#b3261e',borderColor:'#e8b4b0'};
+    if(['#555','#666','#777','#95a5a6','#7f8c8d'].includes(c))return base;
+    return {...base,backgroundColor:club.couleur2,borderColor:club.couleur2,color:texteSur(club.couleur2)};
+  };
+  const card = {backgroundColor:'#ffffff',border:'1px solid #dde4ea',borderRadius:16,padding:16,marginBottom:10} as React.CSSProperties;
+  const hdr = {background:fondBande(club),color:texteSur(club.couleur),padding:'16px 18px',borderRadius:16,marginBottom:16,textAlign:'left' as const};
+  const badge = (c:string)=>(c==='#1a5276'?{backgroundColor:club.couleur+'1f',color:club.couleur,padding:'3px 10px',borderRadius:8,fontSize:12,fontWeight:600}:{backgroundColor:c,color:texteSur(c),padding:'3px 10px',borderRadius:8,fontSize:12,fontWeight:600}) as React.CSSProperties;
 
   // FORM JOUEUSE
   if(vue==='form') return(
-    <div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
-      <div style={hdr}><h2 style={{margin:0}}>👤 {edit?'Modifier':'Nouvelle'} joueuse</h2></div>
+    <div style={{fontFamily:"'Barlow',system-ui,sans-serif",maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
+      <div style={hdr}><h2 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:28}}>{edit?'Modifier':'Nouvelle'} joueuse</h2></div>
       <div style={card}>
         <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
           <div style={{flex:1,minWidth:140}}>
@@ -140,8 +148,8 @@ export default function Effectif({ onRetour }: { onRetour: () => void }) {
         <label style={lbl}>Notes</label>
         <textarea style={{...inp,height:80}} value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Points forts, blessures, observations..."/>
         <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-          <button style={btn('#8e44ad')} onClick={submitJoueuse}>✅ {edit?'Enregistrer':'Ajouter'}</button>
-          <button style={btn('#555')} onClick={()=>{setVue('liste');setEdit(false);}}>✖ Annuler</button>
+          <button style={btn('#8e44ad')} onClick={submitJoueuse}>{IC.ok}{edit?'Enregistrer':'Ajouter'}</button>
+          <button style={btn('#555')} onClick={()=>{setVue('liste');setEdit(false);}}>{IC.fermer}Annuler</button>
         </div>
       </div>
     </div>
@@ -149,8 +157,8 @@ export default function Effectif({ onRetour }: { onRetour: () => void }) {
 
   // DETAIL JOUEUSE
   if(vue==='detail'&&sel) return(
-    <div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
-      <div style={hdr}><h2 style={{margin:0}}>👤 Fiche joueuse</h2></div>
+    <div style={{fontFamily:"'Barlow',system-ui,sans-serif",maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
+      <div style={hdr}><h2 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:28}}>Fiche joueuse</h2></div>
       <div style={card}>
         <h2 style={{margin:'0 0 8px'}}>{sel.prenom} {sel.nom}</h2>
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:12}}>
@@ -160,9 +168,9 @@ export default function Effectif({ onRetour }: { onRetour: () => void }) {
         </div>
         {sel.notes&&<><strong>Notes :</strong><p style={{color:'#555',marginTop:4}}>{sel.notes}</p></>}
         <div style={{display:'flex',gap:8,marginTop:16,flexWrap:'wrap'}}>
-          <button style={btn('#f39c12')} onClick={()=>{setForm({nom:sel.nom,prenom:sel.prenom,postes:sel.postes,dateNaissance:sel.dateNaissance,categorie:sel.categorie,notes:sel.notes});setEdit(true);setVue('form');}}>✏️ Modifier</button>
-          <button style={btn('#e74c3c')} onClick={()=>supprimerJoueuse(sel.id)}>🗑 Supprimer</button>
-          <button style={btn('#555')} onClick={()=>setVue('liste')}>← Retour</button>
+          <button style={btn('#f39c12')} onClick={()=>{setForm({nom:sel.nom,prenom:sel.prenom,postes:sel.postes,dateNaissance:sel.dateNaissance,categorie:sel.categorie,notes:sel.notes});setEdit(true);setVue('form');}}>{IC.modifier}Modifier</button>
+          <button style={btn('#e74c3c')} onClick={()=>supprimerJoueuse(sel.id)}>{IC.supprimer}Supprimer</button>
+          <button style={btn('#555')} onClick={()=>setVue('liste')}>{IC.retour}Retour</button>
         </div>
       </div>
     </div>
@@ -170,8 +178,8 @@ export default function Effectif({ onRetour }: { onRetour: () => void }) {
 
   // FORM EQUIPE
   if(vue==='equipe_form') return(
-    <div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
-      <div style={hdr}><h2 style={{margin:0}}>🏉 {edit?'Modifier':'Nouvelle'} équipe</h2></div>
+    <div style={{fontFamily:"'Barlow',system-ui,sans-serif",maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
+      <div style={hdr}><h2 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:28}}>{edit?'Modifier':'Nouvelle'} équipe</h2></div>
       <div style={card}>
         <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
           <div style={{flex:1,minWidth:140}}>
@@ -185,7 +193,7 @@ export default function Effectif({ onRetour }: { onRetour: () => void }) {
             </select>
           </div>
         </div>
-        <h4 style={{color:'#1a5276',borderBottom:'2px solid #1a5276',paddingBottom:4}}>Titulaires (1-15)</h4>
+        <h4 style={{color:club.couleur,borderBottom:'2px solid '+club.couleur,paddingBottom:4}}>Titulaires (1-15)</h4>
         {formEquipe.titulaires.map((t,i)=>(
           <div key={i} style={{display:'flex',gap:8,alignItems:'center',marginBottom:6,flexWrap:'wrap'}}>
             <div style={{width:28,height:28,borderRadius:'50%',backgroundColor:couleurPoste(t.poste),display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:'bold',fontSize:12,flexShrink:0}}>{t.numero}</div>
@@ -216,8 +224,8 @@ export default function Effectif({ onRetour }: { onRetour: () => void }) {
           </div>
         ))}
         <div style={{display:'flex',gap:8,marginTop:16,flexWrap:'wrap'}}>
-          <button style={btn('#1a5276')} onClick={submitEquipe}>✅ {edit?'Enregistrer':'Créer l\'équipe'}</button>
-          <button style={btn('#555')} onClick={()=>{setVue('liste');setEdit(false);}}>✖ Annuler</button>
+          <button style={btn('#1a5276')} onClick={submitEquipe}>{IC.ok}{edit?'Enregistrer':'Créer l\'équipe'}</button>
+          <button style={btn('#555')} onClick={()=>{setVue('liste');setEdit(false);}}>{IC.fermer}Annuler</button>
         </div>
       </div>
     </div>
@@ -225,11 +233,11 @@ export default function Effectif({ onRetour }: { onRetour: () => void }) {
 
   // DETAIL EQUIPE
   if(vue==='equipe_detail'&&selEquipe) return(
-    <div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
-      <div style={hdr}><h2 style={{margin:0}}>🏉 {selEquipe.nom}</h2></div>
+    <div style={{fontFamily:"'Barlow',system-ui,sans-serif",maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
+      <div style={hdr}><h2 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:28}}>{selEquipe.nom}</h2></div>
       <div style={card}>
         <span style={badge('#1a5276')}>{selEquipe.categorie}</span>
-        <h4 style={{color:'#1a5276',marginTop:12}}>Titulaires</h4>
+        <h4 style={{color:club.couleur,marginTop:12}}>Titulaires</h4>
         {selEquipe.titulaires.map((t,i)=>{
           const j=joueuses.find(jj=>jj.id===t.joueuseId);
           return(
@@ -252,9 +260,9 @@ export default function Effectif({ onRetour }: { onRetour: () => void }) {
           );
         })}
         <div style={{display:'flex',gap:8,marginTop:16,flexWrap:'wrap'}}>
-          <button style={btn('#f39c12')} onClick={()=>{setFormEquipe({nom:selEquipe.nom,categorie:selEquipe.categorie,titulaires:selEquipe.titulaires,finisseurs:selEquipe.finisseurs});setEdit(true);setVue('equipe_form');}}>✏️ Modifier</button>
-          <button style={btn('#e74c3c')} onClick={()=>{saveEquipes(equipes.filter(e=>e.id!==selEquipe.id));setVue('liste');}}>🗑 Supprimer</button>
-          <button style={btn('#555')} onClick={()=>setVue('liste')}>← Retour</button>
+          <button style={btn('#f39c12')} onClick={()=>{setFormEquipe({nom:selEquipe.nom,categorie:selEquipe.categorie,titulaires:selEquipe.titulaires,finisseurs:selEquipe.finisseurs});setEdit(true);setVue('equipe_form');}}>{IC.modifier}Modifier</button>
+          <button style={btn('#e74c3c')} onClick={()=>{saveEquipes(equipes.filter(e=>e.id!==selEquipe.id));setVue('liste');}}>{IC.supprimer}Supprimer</button>
+          <button style={btn('#555')} onClick={()=>setVue('liste')}>{IC.retour}Retour</button>
         </div>
       </div>
     </div>
@@ -262,22 +270,22 @@ export default function Effectif({ onRetour }: { onRetour: () => void }) {
 
   // LISTE PRINCIPALE
   return(
-    <div style={{fontFamily:'sans-serif',maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
+    <div style={{fontFamily:"'Barlow',system-ui,sans-serif",maxWidth:800,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
       <div style={hdr}>
-        <h1 style={{margin:0,fontSize:22}}>👥 Effectif & Équipes</h1>
+        <h1 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:30}}>Effectif & Équipes</h1>
       </div>
       <div style={{display:'flex',gap:0,marginBottom:16,backgroundColor:'white',borderRadius:10,overflow:'hidden',boxShadow:'0 2px 6px rgba(0,0,0,0.08)'}}>
-        <button onClick={()=>setOnglet('effectif')} style={{flex:1,padding:12,border:'none',cursor:'pointer',fontWeight:'bold',fontSize:14,backgroundColor:onglet==='effectif'?'#8e44ad':'white',color:onglet==='effectif'?'white':'#333'}}>👤 Effectif ({joueuses.length})</button>
-        <button onClick={()=>setOnglet('equipes')} style={{flex:1,padding:12,border:'none',cursor:'pointer',fontWeight:'bold',fontSize:14,backgroundColor:onglet==='equipes'?'#1a5276':'white',color:onglet==='equipes'?'white':'#333'}}>🏉 Équipes ({equipes.length})</button>
+        <button onClick={()=>setOnglet('effectif')} style={{flex:1,padding:12,border:'none',cursor:'pointer',fontWeight:'bold',fontSize:14,backgroundColor:onglet==='effectif'?club.couleur:'white',color:onglet==='effectif'?texteSur(club.couleur):'#333'}}>Effectif ({joueuses.length})</button>
+        <button onClick={()=>setOnglet('equipes')} style={{flex:1,padding:12,border:'none',cursor:'pointer',fontWeight:'bold',fontSize:14,backgroundColor:onglet==='equipes'?club.couleur:'white',color:onglet==='equipes'?texteSur(club.couleur):'#333'}}>Équipes ({equipes.length})</button>
       </div>
 
       {onglet==='effectif'&&<>
         <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
-          <button style={btn('#8e44ad')} onClick={()=>{setEdit(false);setVue('form');}}>+ Ajouter une joueuse</button>
-          <button style={btn('#555')} onClick={onRetour}>← Retour</button>
+          <button style={btn('#8e44ad')} onClick={()=>{setEdit(false);setVue('form');}}>{IC.plus}Ajouter une joueuse</button>
+          <button style={btn('#555')} onClick={onRetour}>{IC.retour}Retour</button>
         </div>
         <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
-          <input style={{...inp,marginBottom:0,flex:1,minWidth:150}} placeholder="🔍 Rechercher..." value={filtre} onChange={e=>setFiltre(e.target.value)}/>
+          <input style={{...inp,marginBottom:0,flex:1,minWidth:150}} placeholder="Rechercher..." value={filtre} onChange={e=>setFiltre(e.target.value)}/>
           <select style={{...inp,marginBottom:0,flex:1,minWidth:150}} value={filtrePoste} onChange={e=>setFiltrePoste(e.target.value)}>
             <option value=''>Tous les postes</option>
             {POSTES_LISTE.map(p=><option key={p}>{p}</option>)}
@@ -285,7 +293,6 @@ export default function Effectif({ onRetour }: { onRetour: () => void }) {
         </div>
         {joueuseFiltrees.length===0?(
           <div style={{...card,textAlign:'center',color:'#888',padding:40}}>
-            <p style={{fontSize:40}}>👥</p>
             <p>Aucune joueuse.<br/>Ajoute ta première joueuse !</p>
           </div>
         ):joueuseFiltrees.map(j=>(
@@ -309,16 +316,15 @@ export default function Effectif({ onRetour }: { onRetour: () => void }) {
 
       {onglet==='equipes'&&<>
         <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
-          <button style={btn('#1a5276')} onClick={()=>{setEdit(false);setVue('equipe_form');}}>+ Créer une équipe</button>
-          <button style={btn('#555')} onClick={onRetour}>← Retour</button>
+          <button style={btn('#1a5276')} onClick={()=>{setEdit(false);setVue('equipe_form');}}>{IC.plus}Créer une équipe</button>
+          <button style={btn('#555')} onClick={onRetour}>{IC.retour}Retour</button>
         </div>
         {equipes.length===0?(
           <div style={{...card,textAlign:'center',color:'#888',padding:40}}>
-            <p style={{fontSize:40}}>🏉</p>
             <p>Aucune équipe créée.<br/>Crée ta première équipe !</p>
           </div>
         ):equipes.map(e=>(
-          <div key={e.id} style={{...card,cursor:'pointer',borderLeft:'5px solid #1a5276'}} onClick={()=>{setSelEquipe(e);setVue('equipe_detail');}}>
+          <div key={e.id} style={{...card,cursor:'pointer',borderLeft:'5px solid '+club.couleur}} onClick={()=>{setSelEquipe(e);setVue('equipe_detail');}}>
             <strong style={{fontSize:16}}>{e.nom}</strong>
             <div style={{display:'flex',gap:6,marginTop:6,flexWrap:'wrap'}}>
               <span style={badge('#1a5276')}>{e.categorie}</span>

@@ -18,6 +18,7 @@ export const IC = {
   liste: <I><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" /></I>,
   retour: <I><path d="M15 6l-6 6 6 6" /></I>,
   fermer: <I><path d="M6 6l12 12M18 6L6 18" /></I>,
+  modifier: <I><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></I>,
   ok: <I><path d="M5 12l5 5 9-10" /></I>,
   dossier: <I><path d="M3 7h6l2 2h10v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" /></I>,
 };
