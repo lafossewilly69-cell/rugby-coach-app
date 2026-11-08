@@ -1,5 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { db } from './firebase';
+import { useClub, texteSur, fondBande } from './club';
+import { IC } from './icones';
 import { collection, doc, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
 
 const W = 800, H = 520;
@@ -180,6 +182,7 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
   const [elements, setElements] = useState<Element[]>([]);
   const [outil, setOutil] = useState<string>('deplacer');
   const [fleches, setFleches] = useState<Fleche[]>([]);
+  const [club]=useClub();
   const flechesRef = useRef<Fleche[]>([]);
   useEffect(()=>{flechesRef.current=fleches;},[fleches]);
   const [prochainOrdre, setProchainOrdre] = useState(1);
@@ -349,21 +352,29 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
     setNomSeance('');setSauvegardeOuv(false);
   };
 
-  const btn=(c:string,actif=false)=>({backgroundColor:actif?'#f39c12':c,color:'white',border:actif?'2px solid white':'2px solid transparent',padding:'7px 10px',borderRadius:8,cursor:'pointer',fontWeight:'bold',fontSize:11} as React.CSSProperties);
+  const btn=(c:string,actif=false)=>{
+    const base:React.CSSProperties={display:'inline-flex',alignItems:'center',justifyContent:'center',gap:6,minHeight:44,padding:'0 14px',borderRadius:12,cursor:'pointer',fontFamily:'inherit',fontWeight:600,fontSize:14,border:'1px solid #d9e0dc',backgroundColor:'#ffffff',color:'#14211c'};
+    if(c==='#e74c3c'||c==='#c0392b')return actif?{...base,backgroundColor:'#b3261e',borderColor:'#b3261e',color:'#ffffff'}:{...base,color:'#b3261e',borderColor:'#e8b4b0'};
+    if(c==='#1f4e8c')return {...base,color:'#1f4e8c',borderColor:'#b5c9e6'};
+    if(c==='#3498db'||c==='#8e44ad'||c==='#2ecc71')return {...base,backgroundColor:club.couleur2,borderColor:club.couleur2,color:texteSur(club.couleur2)};
+    if(actif)return {...base,backgroundColor:club.couleur,borderColor:club.couleur,color:texteSur(club.couleur)};
+    if(['#555','#795548','#1a5276','#27ae60','#16a085','#f39c12','#c8860a'].includes(c))return base;
+    return {...base,borderLeft:'6px solid '+c};
+  };
 
   if(vue==='liste')return(
-    <div style={{fontFamily:'sans-serif',maxWidth:820,margin:'0 auto',padding:12,backgroundColor:'#1a1a1a',minHeight:'100vh'}}>
-      <div style={{backgroundColor:'#27ae60',color:'white',padding:14,borderRadius:10,marginBottom:12,textAlign:'center'}}>
-        <h2 style={{margin:0}}>📋 Mes séances visuelles</h2>
+    <div style={{fontFamily:'sans-serif',maxWidth:820,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
+      <div style={{background:fondBande(club),color:texteSur(club.couleur),padding:'16px 18px',borderRadius:16,marginBottom:12,textAlign:'left'}}>
+        <h2 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:28}}>Mes séances visuelles</h2>
       </div>
-      <button style={{...btn('#555'),marginBottom:12}} onClick={()=>setVue('terrain')}>← Retour</button>
-      {schemas.length===0&&<div style={{color:'#aaa',textAlign:'center',padding:40}}>Aucune séance sauvegardée</div>}
+      <button style={{...btn('#555'),marginBottom:12}} onClick={()=>setVue('terrain')}>{IC.retour}Retour</button>
+      {schemas.length===0&&<div style={{color:'#5b6b64',textAlign:'center',padding:40}}>Aucune séance sauvegardée</div>}
       {schemas.map(s=>(
-        <div key={s.id} style={{backgroundColor:'#3a3a3a',borderRadius:8,padding:12,marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <span style={{color:'white',fontWeight:'bold'}}>{s.nom}</span>
+        <div key={s.id} style={{backgroundColor:'#ffffff',border:'1px solid #dde4ea',borderRadius:12,padding:12,marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <span style={{color:'#14211c',fontWeight:'bold'}}>{s.nom}</span>
           <div style={{display:'flex',gap:6}}>
-            <button style={btn('#2ecc71')} onClick={()=>{const els=s.elements.map(e=>({...e}));const fls=(s.fleches||[]).map(f=>({...f}));setElements(els);elementsRef.current=els;setFleches(fls);flechesRef.current=fls;setVue('terrain');}}>📂 Charger</button>
-            <button style={btn('#e74c3c')} onClick={()=>{deleteDoc(doc(db,'rugby-terrains',s.id));}}>🗑</button>
+            <button style={btn('#2ecc71')} onClick={()=>{const els=s.elements.map(e=>({...e}));const fls=(s.fleches||[]).map(f=>({...f}));setElements(els);elementsRef.current=els;setFleches(fls);flechesRef.current=fls;setVue('terrain');}}>{IC.dossier}Charger</button>
+            <button style={btn('#e74c3c')} onClick={()=>{deleteDoc(doc(db,'rugby-terrains',s.id));}} aria-label="Supprimer la séance">{IC.supprimer}</button>
           </div>
         </div>
       ))}
@@ -371,77 +382,77 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
   );
 
   return(
-    <div style={{fontFamily:'sans-serif',maxWidth:820,margin:'0 auto',padding:12,backgroundColor:'#1a1a1a',minHeight:'100vh'}}>
-      <div style={{backgroundColor:'#27ae60',color:'white',padding:14,borderRadius:10,marginBottom:12,textAlign:'center'}}>
-        <h2 style={{margin:0}}>🏋️ Éditeur de séance visuelle</h2>
+    <div style={{fontFamily:'sans-serif',maxWidth:820,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
+      <div style={{background:fondBande(club),color:texteSur(club.couleur),padding:'16px 18px',borderRadius:16,marginBottom:12,textAlign:'left'}}>
+        <h2 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:28}}>Éditeur de séance visuelle</h2>
       </div>
 
       {modalJoueur&&(
         <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,backgroundColor:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100}}>
-          <div style={{backgroundColor:'#2a2a2a',borderRadius:12,padding:24,minWidth:280,textAlign:'center'}}>
-            <h3 style={{color:'white',margin:'0 0 16px'}}>Numéro du {modalJoueur.equipe==='adversaire'?'joueur adverse':'joueur allié'}</h3>
+          <div style={{backgroundColor:'#ffffff',borderRadius:16,padding:24,minWidth:280,textAlign:'center'}}>
+            <h3 style={{color:'#14211c',margin:'0 0 16px'}}>Numéro du {modalJoueur.equipe==='adversaire'?'joueur adverse':'joueur allié'}</h3>
             <input autoFocus value={numInput} onChange={e=>setNumInput(e.target.value)}
               onKeyDown={e=>e.key==='Enter'&&ajouterJoueur()}
               placeholder="Ex: 9" type="number" min="1" max="99"
-              style={{width:'100%',padding:12,borderRadius:8,border:'none',fontSize:20,textAlign:'center',marginBottom:16,boxSizing:'border-box' as const}}/>
+              style={{width:'100%',padding:12,borderRadius:8,border:'1px solid #d9e0dc',fontSize:20,textAlign:'center',marginBottom:16,boxSizing:'border-box' as const}}/>
             <div style={{display:'flex',gap:8,justifyContent:'center'}}>
-              <button style={btn(modalJoueur.equipe==='adversaire'?'#e74c3c':'#1a5276')} onClick={ajouterJoueur}>✅ Ajouter</button>
+              <button style={btn('#2ecc71')} onClick={ajouterJoueur}>{IC.ok}Ajouter</button>
               <button style={btn('#555')} onClick={()=>{setModalJoueur(null);setNumInput('');}}>✖</button>
             </div>
           </div>
         </div>
       )}
 
-      <div style={{backgroundColor:'#2a2a2a',borderRadius:10,padding:12,marginBottom:12}}>
+      <div style={{backgroundColor:'#ffffff',border:'1px solid #dde4ea',borderRadius:16,padding:12,marginBottom:12}}>
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
-          <button style={btn('#1a5276',outil==='deplacer')} onClick={()=>setOutil('deplacer')}>✋ Déplacer</button>
-          <button style={btn('#e74c3c',outil==='supprimer')} onClick={()=>setOutil('supprimer')}>🗑 Supprimer</button>
-          <button style={btn('#f39c12',outil==='fleche')} onClick={()=>{outilRef.current='fleche';setOutil('fleche');}}>🟡 Mouvement joueur</button>
-          <button style={btn('#c8860a',outil==='fleche_ballon')} onClick={()=>{outilRef.current='fleche_ballon';setOutil('fleche_ballon');}}>🏉 Mouvement ballon</button>
-          <button style={btn('#27ae60')} onClick={()=>{setFleches([]);flechesRef.current=[];draw(elementsRef.current);}}>Effacer flèches</button>
-          <button style={btn('#3498db')} onClick={animer} disabled={anime||fleches.length===0}>▶ Animer</button>
-          <button style={btn('#795548')} onClick={()=>{setElements([]);setOutil('deplacer');}}>🔄 Réinitialiser</button>
+          <button style={btn('#1a5276',outil==='deplacer')} onClick={()=>setOutil('deplacer')}>{IC.deplacer}Déplacer</button>
+          <button style={btn('#e74c3c',outil==='supprimer')} onClick={()=>setOutil('supprimer')}>{IC.supprimer}Supprimer</button>
+          <button style={btn('#f39c12',outil==='fleche')} onClick={()=>{outilRef.current='fleche';setOutil('fleche');}}>{IC.fleche}Mouvement joueur</button>
+          <button style={btn('#c8860a',outil==='fleche_ballon')} onClick={()=>{outilRef.current='fleche_ballon';setOutil('fleche_ballon');}}>{IC.ballon}Mouvement ballon</button>
+          <button style={btn('#27ae60')} onClick={()=>{setFleches([]);flechesRef.current=[];draw(elementsRef.current);}}>{IC.effacer}Effacer flèches</button>
+          <button style={btn('#3498db')} onClick={animer} disabled={anime||fleches.length===0}>{IC.play}Animer</button>
+          <button style={btn('#795548')} onClick={()=>{setElements([]);setOutil('deplacer');}}>{IC.reset}Réinitialiser</button>
         </div>
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
-          <span style={{color:'#aaa',fontSize:11,alignSelf:'center'}}>Joueurs :</span>
-          <button style={btn('#1a5276')} onClick={()=>setModalJoueur({equipe:'joueur'})}>+ Attaque</button>
-          <button style={btn('#c0392b')} onClick={()=>setModalJoueur({equipe:'adversaire'})}>+ Défense</button>
+          <span style={{color:'#5b6b64',fontSize:14,alignSelf:'center'}}>Joueurs :</span>
+          <button style={btn('#1f4e8c')} onClick={()=>setModalJoueur({equipe:'joueur'})}>{IC.plus}Attaque</button>
+          <button style={btn('#c0392b')} onClick={()=>setModalJoueur({equipe:'adversaire'})}>{IC.plus}Défense</button>
         </div>
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
-          <span style={{color:'#aaa',fontSize:11,alignSelf:'center'}}>Plots :</span>
+          <span style={{color:'#5b6b64',fontSize:14,alignSelf:'center'}}>Plots :</span>
           {PLOTS.map(a=>(
             <button key={a.type} style={btn(a.couleur,outil===a.type)} onClick={()=>{outilRef.current=a.type;setOutil(a.type);}}>{a.label}</button>
           ))}
         </div>
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
-          <span style={{color:'#aaa',fontSize:11,alignSelf:'center'}}>Accessoires :</span>
+          <span style={{color:'#5b6b64',fontSize:14,alignSelf:'center'}}>Accessoires :</span>
           {ACCESSOIRES.filter(a=>!a.type.startsWith('plot_')).map(a=>(
             <button key={a.type} style={btn(a.couleur,outil===a.type)} onClick={()=>{outilRef.current=a.type;setOutil(a.type);}}>{a.label}</button>
           ))}
         </div>
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
-          <button style={btn('#8e44ad')} onClick={()=>setSauvegardeOuv(v=>!v)}>💾 Sauvegarder</button>
-          <button style={btn('#16a085')} onClick={()=>setVue('liste')}>📋 Mes séances ({schemas.length})</button>
-          <button style={btn('#555')} onClick={onRetour}>← Retour</button>
+          <button style={btn('#8e44ad')} onClick={()=>setSauvegardeOuv(v=>!v)}>{IC.sauver}Sauvegarder</button>
+          <button style={btn('#16a085')} onClick={()=>setVue('liste')}>{IC.liste}Mes séances ({schemas.length})</button>
+          <button style={btn('#555')} onClick={onRetour}>{IC.retour}Retour</button>
         </div>
         {sauvegardeOuv&&(
           <div style={{display:'flex',gap:8,marginBottom:8,alignItems:'center'}}>
             <input value={nomSeance} onChange={e=>setNomSeance(e.target.value)}
               placeholder="Nom de la séance (ex: Exercice défense 22m)"
-              style={{flex:1,padding:8,borderRadius:8,border:'none',fontSize:13}}/>
-            <button style={btn('#2ecc71')} onClick={sauvegarder}>✅ OK</button>
-            <button style={btn('#555')} onClick={()=>setSauvegardeOuv(false)}>✖</button>
+              style={{flex:1,padding:10,borderRadius:10,border:'1px solid #d9e0dc',fontSize:15}}/>
+            <button style={btn('#2ecc71')} onClick={sauvegarder}>{IC.ok}OK</button>
+            <button style={btn('#555')} onClick={()=>setSauvegardeOuv(false)} aria-label="Fermer">{IC.fermer}</button>
           </div>
         )}
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8,alignItems:'center'}}>
-          <span style={{color:'#aaa',fontSize:11}}>Ordre :</span>
+          <span style={{color:'#5b6b64',fontSize:14}}>Ordre :</span>
           <button style={{...btn('#555'),padding:'4px 10px',fontSize:14}} onClick={()=>setProchainOrdre(n=>Math.max(1,n-1))}>-</button>
-          <span style={{color:'white',fontWeight:'bold',fontSize:14,padding:'0 8px'}}>{prochainOrdre}</span>
+          <span style={{color:club.couleur,fontWeight:'bold',fontSize:18,padding:'0 8px'}}>{prochainOrdre}</span>
           <button style={{...btn('#f39c12'),padding:'4px 10px',fontSize:14}} onClick={()=>setProchainOrdre(n=>n+1)}>+</button>
         </div>
-        <div style={{fontSize:11,color:'#aaa',marginBottom:6}}>
-          Outil actif : <strong style={{color:'white'}}>{outil}</strong>
-          {ACCESSOIRES.find(a=>a.type===outil)&&<span style={{color:'#aaa'}}> — Tape sur le terrain pour poser</span>}
+        <div style={{fontSize:13,color:'#5b6b64',marginBottom:8}}>
+          Outil actif : <strong style={{color:'#14211c'}}>{outil}</strong>
+          {ACCESSOIRES.find(a=>a.type===outil)&&<span style={{color:'#5b6b64'}}> — Tape sur le terrain pour poser</span>}
         </div>
         <canvas ref={canvas} width={W} height={H}
           style={{width:'100%',borderRadius:8,cursor:outil==='deplacer'?'grab':'copy',touchAction:'none',display:'block'}}
