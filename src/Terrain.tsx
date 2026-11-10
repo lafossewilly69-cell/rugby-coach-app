@@ -33,7 +33,7 @@ const ACCESSOIRES = [
   {type:'echelle', label:'🪜 Échelle', couleur:'#8e44ad'},
 ];
 
-function dessinerTerrain(ctx: CanvasRenderingContext2D) {
+export function dessinerTerrain(ctx: CanvasRenderingContext2D) {
   for (let i = 0; i < 10; i++) {
     ctx.fillStyle = i%2===0?'#2d8a4e':'#277a45';
     ctx.fillRect(i*(W/10),0,W/10,H);
@@ -66,7 +66,7 @@ function dessinerTerrain(ctx: CanvasRenderingContext2D) {
   ctx.setLineDash([]);
 }
 
-function dessinerElement(ctx: CanvasRenderingContext2D, el: Element) {
+export function dessinerElement(ctx: CanvasRenderingContext2D, el: Element) {
   ctx.save();
   ctx.translate(el.x, el.y);
   switch(el.type) {
@@ -463,3 +463,5 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
     </div>
   );
 }
+
+export const DIM_TERRAIN = { W, H };
