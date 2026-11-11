@@ -3,6 +3,7 @@ import { db } from './firebase';
 import { useClub, texteSur, fondBande } from './club';
 import { IC } from './icones';
 import Curseurs from './Curseurs';
+import { RAYON_POINTE, pointesLibres } from './fleches';
 import { collection, doc, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
 
 const W = 800, H = 520;
@@ -250,10 +251,10 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
       ctx.fillStyle='white';ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText(String(f.ordre),mx,my);
     });
-    ctx.globalAlpha=1;els.forEach(el=>dessinerElement(ctx,{...el,taille:taillesRef.current[categorieDe(el.type)]}));
+    ctx.globalAlpha=1;els.forEach(el=>dessinerElement(ctx,{...el,taille:taillesRef.current[categorieDe(el.type)]}));pointesLibres(ctx,flechesRef.current,outilRef.current,(f:Fleche)=>!!f.estBallon||els.some(e=>e.id===f.cibleId&&e.type==='ballon'));
   },[]);
 
-  useEffect(()=>{draw(elements);},[elements,draw,tailles]);
+  useEffect(()=>{outilRef.current=outil;draw(elements);},[elements,draw,tailles,outil]);
 
   const getPos=(cx:number,cy:number)=>{
     const r=canvas.current!.getBoundingClientRect();
@@ -268,15 +269,15 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
     if(o==='fleche'||o==='fleche_ballon'){
       const filtre=o==='fleche_ballon'?(t:string)=>t==='ballon':(t:string)=>t!=='ballon';
       const el=elementsRef.current.slice().reverse().find(e=>filtre(e.type)&&Math.hypot(e.x-x,e.y-y)<Math.max(20,20*taillesRef.current[categorieDe(e.type)]))||null;
-      if(el){
+      const estBalleF=(f:Fleche)=>!!f.estBallon||elementsRef.current.some(e=>e.id===f.cibleId&&e.type==='ballon');
+      const pointe=flechesRef.current.filter(f=>estBalleF(f)===(o==='fleche_ballon')&&!aSuite(f,flechesRef.current)&&Math.hypot(x-f.x2,y-f.y2)<RAYON_POINTE).sort((a,b)=>Math.hypot(x-a.x2,y-a.y2)-Math.hypot(x-b.x2,y-b.y2))[0];
+      const dPointe=pointe?Math.hypot(x-pointe.x2,y-pointe.y2):9999;
+      const dEl=el?Math.hypot(x-el.x,y-el.y):9999;
+      if(pointe&&dPointe<=dEl+12){debutFlecheRef.current={x:pointe.x2,y:pointe.y2,cibleId:pointe.cibleId};}else if(el){
         const fj=flechesRef.current.filter(f=>f.cibleId===el.id&&!aSuite(f,flechesRef.current)).sort((a,b)=>b.ordre-a.ordre);
         const last=fj[0];
         debutFlecheRef.current={x:last?last.x2:el.x,y:last?last.y2:el.y,cibleId:el.id};
-      } else {
-        const pointe=flechesRef.current.filter(f=>!!f.estBallon===(o==='fleche_ballon')&&!aSuite(f,flechesRef.current)&&Math.hypot(x-f.x2,y-f.y2)<20).sort((a,b)=>Math.hypot(x-a.x2,y-a.y2)-Math.hypot(x-b.x2,y-b.y2))[0];
-        if(pointe) debutFlecheRef.current={x:pointe.x2,y:pointe.y2,cibleId:pointe.cibleId};
-        else debutFlecheRef.current={x,y};
-      }
+      } else { debutFlecheRef.current={x,y}; }
       return;
     }
     if(o==='deplacer'){

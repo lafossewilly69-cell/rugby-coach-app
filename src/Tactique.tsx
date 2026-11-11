@@ -3,6 +3,7 @@ import { useCloud } from './useCloud';
 import { useClub, texteSur, fondBande } from './club';
 import { IC } from './icones';
 import Curseurs from './Curseurs';
+import { RAYON_POINTE, pointesLibres } from './fleches';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 
 type Joueur = { id: string; x: number; y: number; numero: number; equipe: 'nous' | 'eux' };
@@ -133,10 +134,10 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
     ctx.fill();ctx.strokeStyle='white';ctx.lineWidth=1;ctx.stroke();
     ctx.beginPath();ctx.moveTo(-5,0);ctx.lineTo(5,0);
     ctx.strokeStyle='white';ctx.lineWidth=0.8;ctx.stroke();
-    ctx.restore();
+    ctx.restore();pointesLibres(ctx,fs,outilRef.current,(f:Fleche)=>!!f.estBallon);
   },[]);
 
-  useEffect(()=>{draw(joueurs,fleches,ballon);},[joueurs,fleches,ballon,draw,tailles]);
+  useEffect(()=>{outilRef.current=outil;draw(joueurs,fleches,ballon);},[joueurs,fleches,ballon,draw,tailles,outil]);
 
   const getPos=(cx:number,cy:number)=>{
     const r=canvas.current!.getBoundingClientRect();
@@ -159,7 +160,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
       else if(ballonProche){dragBallonRef.current=true;}
     } else if(o==='fleche'){
       // Chercher pointe de flèche proche
-      const pointe=flechesRef.current.filter(f=>!f.estBallon&&!aSuite(f,flechesRef.current)&&Math.hypot(x-f.x2,y-f.y2)<20).sort((a,b)=>Math.hypot(x-a.x2,y-a.y2)-Math.hypot(x-b.x2,y-b.y2))[0];
+      const pointe=flechesRef.current.filter(f=>!f.estBallon&&!aSuite(f,flechesRef.current)&&Math.hypot(x-f.x2,y-f.y2)<RAYON_POINTE).sort((a,b)=>Math.hypot(x-a.x2,y-a.y2)-Math.hypot(x-b.x2,y-b.y2))[0];
       if(pointe){debutRef.current={x:pointe.x2,y:pointe.y2,cibleId:pointe.cibleId,estBallon:pointe.estBallon};}
       else if(j){const fj=flechesRef.current.filter(f=>!f.estBallon&&f.cibleId===j.id&&!aSuite(f,flechesRef.current)).sort((a,b)=>b.ordre-a.ordre);const last=fj[0];debutRef.current={x:last?last.x2:j.x,y:last?last.y2:j.y,cibleId:j.id};}
       else debutRef.current={x,y};
