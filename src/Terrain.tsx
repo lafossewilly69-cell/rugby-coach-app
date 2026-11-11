@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { db } from './firebase';
 import { useClub, texteSur, fondBande } from './club';
 import { IC } from './icones';
+import Curseurs from './Curseurs';
 import { collection, doc, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
 
 const W = 800, H = 520;
@@ -14,6 +15,7 @@ type Element = {
   numero?: number;
   couleur?: string;
   rotation?: number;
+  taille?: number;
 };
 
 const PLOTS = [
@@ -67,6 +69,16 @@ export function dessinerTerrain(ctx: CanvasRenderingContext2D) {
 }
 
 export function dessinerElement(ctx: CanvasRenderingContext2D, el: Element) {
+  const k = el.taille || 1;
+  if (k === 1) { dessinerElementBase(ctx, el); return; }
+  ctx.save();
+  ctx.translate(el.x, el.y);
+  ctx.scale(k, k);
+  ctx.translate(-el.x, -el.y);
+  dessinerElementBase(ctx, el);
+  ctx.restore();
+}
+function dessinerElementBase(ctx: CanvasRenderingContext2D, el: Element) {
   ctx.save();
   ctx.translate(el.x, el.y);
   switch(el.type) {
@@ -177,12 +189,22 @@ export function dessinerElement(ctx: CanvasRenderingContext2D, el: Element) {
 
 const aSuite=(f:Fleche,fs:Fleche[])=>fs.some(g=>g.id!==f.id&&!!g.estBallon===!!f.estBallon&&Math.hypot(g.x1-f.x2,g.y1-f.y2)<2);
 
+type Cat = 'joueurs' | 'ballon' | 'accessoires';
+const categorieDe = (type: string): Cat => (type === 'joueur' || type === 'adversaire') ? 'joueurs' : type === 'ballon' ? 'ballon' : 'accessoires';
+const taillesDe = (els: Element[]): Record<Cat, number> => {
+  const lire = (c: Cat) => { const e = els.find(x => categorieDe(x.type) === c && x.taille); return e && e.taille ? e.taille : 1; };
+  return { joueurs: lire('joueurs'), ballon: lire('ballon'), accessoires: lire('accessoires') };
+};
+
 export default function Terrain({ onRetour }: { onRetour: () => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [elements, setElements] = useState<Element[]>([]);
   const [outil, setOutil] = useState<string>('deplacer');
   const [fleches, setFleches] = useState<Fleche[]>([]);
   const [club]=useClub();
+  const [tailles,setTailles]=useState<Record<Cat,number>>({joueurs:1,ballon:1,accessoires:1});
+  const taillesRef=useRef(tailles);
+  taillesRef.current=tailles;
   const flechesRef = useRef<Fleche[]>([]);
   useEffect(()=>{flechesRef.current=fleches;},[fleches]);
   const [prochainOrdre, setProchainOrdre] = useState(1);
@@ -228,10 +250,10 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
       ctx.fillStyle='white';ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText(String(f.ordre),mx,my);
     });
-    ctx.globalAlpha=1;els.forEach(el=>dessinerElement(ctx,el));
+    ctx.globalAlpha=1;els.forEach(el=>dessinerElement(ctx,{...el,taille:taillesRef.current[categorieDe(el.type)]}));
   },[]);
 
-  useEffect(()=>{draw(elements);},[elements,draw]);
+  useEffect(()=>{draw(elements);},[elements,draw,tailles]);
 
   const getPos=(cx:number,cy:number)=>{
     const r=canvas.current!.getBoundingClientRect();
@@ -239,13 +261,13 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
   };
 
   const trouverElement=(x:number,y:number)=>
-    elementsRef.current.slice().reverse().find(el=>Math.hypot(el.x-x,el.y-y)<20)||null;
+    elementsRef.current.slice().reverse().find(el=>Math.hypot(el.x-x,el.y-y)<Math.max(20,20*taillesRef.current[categorieDe(el.type)]))||null;
 
   const handleStart=(x:number,y:number)=>{
     const o=outilRef.current;
     if(o==='fleche'||o==='fleche_ballon'){
       const filtre=o==='fleche_ballon'?(t:string)=>t==='ballon':(t:string)=>t!=='ballon';
-      const el=elementsRef.current.slice().reverse().find(e=>filtre(e.type)&&Math.hypot(e.x-x,e.y-y)<20)||null;
+      const el=elementsRef.current.slice().reverse().find(e=>filtre(e.type)&&Math.hypot(e.x-x,e.y-y)<Math.max(20,20*taillesRef.current[categorieDe(e.type)]))||null;
       if(el){
         const fj=flechesRef.current.filter(f=>f.cibleId===el.id&&!aSuite(f,flechesRef.current)).sort((a,b)=>b.ordre-a.ordre);
         const last=fj[0];
@@ -347,7 +369,7 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
   const sauvegarder=()=>{
     if(!nomSeance.trim())return;
     const id=Date.now().toString();
-    const s={nom:nomSeance.trim(),elements:[...elementsRef.current],fleches:[...flechesRef.current]};
+    const s={nom:nomSeance.trim(),elements:elementsRef.current.map(e=>({...e,taille:taillesRef.current[categorieDe(e.type)]})),fleches:[...flechesRef.current]};
     setDoc(doc(db,'rugby-terrains',id),JSON.parse(JSON.stringify(s))).catch(e=>alert('Erreur Firestore : '+e.message));
     setNomSeance('');setSauvegardeOuv(false);
   };
@@ -373,7 +395,7 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
         <div key={s.id} style={{backgroundColor:'#ffffff',border:'1px solid #dde4ea',borderRadius:12,padding:12,marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <span style={{color:'#14211c',fontWeight:'bold'}}>{s.nom}</span>
           <div style={{display:'flex',gap:6}}>
-            <button style={btn('#2ecc71')} onClick={()=>{const els=s.elements.map(e=>({...e}));const fls=(s.fleches||[]).map(f=>({...f}));setElements(els);elementsRef.current=els;setFleches(fls);flechesRef.current=fls;setVue('terrain');}}>{IC.dossier}Charger</button>
+            <button style={btn('#2ecc71')} onClick={()=>{const els=s.elements.map(e=>({...e}));const fls=(s.fleches||[]).map(f=>({...f}));setElements(els);elementsRef.current=els;setTailles(taillesDe(els));setFleches(fls);flechesRef.current=fls;setVue('terrain');}}>{IC.dossier}Charger</button>
             <button style={btn('#e74c3c')} onClick={()=>{deleteDoc(doc(db,'rugby-terrains',s.id));}} aria-label="Supprimer la séance">{IC.supprimer}</button>
           </div>
         </div>
@@ -454,6 +476,7 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
           Outil actif : <strong style={{color:'#14211c'}}>{outil}</strong>
           {ACCESSOIRES.find(a=>a.type===outil)&&<span style={{color:'#5b6b64'}}> — Tape sur le terrain pour poser</span>}
         </div>
+        <Curseurs reglages={[{id:'joueurs',label:'Joueurs',valeur:tailles.joueurs},{id:'ballon',label:'Ballon',valeur:tailles.ballon},{id:'accessoires',label:'Accessoires',valeur:tailles.accessoires}]} onChange={(id,v)=>setTailles(t=>({...t,[id]:v}))} onReset={()=>setTailles({joueurs:1,ballon:1,accessoires:1})}/>
         <canvas ref={canvas} width={W} height={H}
           style={{width:'100%',borderRadius:8,cursor:outil==='deplacer'?'grab':'copy',touchAction:'none',display:'block'}}
           onMouseDown={onMD} onMouseMove={onMM} onMouseUp={onMU}

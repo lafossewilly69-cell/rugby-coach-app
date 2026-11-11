@@ -2,11 +2,12 @@ import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
 import { useCloud } from './useCloud';
 import { useClub, texteSur, fondBande } from './club';
 import { IC } from './icones';
+import Curseurs from './Curseurs';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 
 type Joueur = { id: string; x: number; y: number; numero: number; equipe: 'nous' | 'eux' };
 type Fleche = { id: string; x1: number; y1: number; x2: number; y2: number; cibleId?: string; estBallon?: boolean; ordre: number };
-type Schema = { id: string; nom: string; joueurs: Joueur[]; fleches: Fleche[]; ballon: {x:number,y:number} };
+type Schema = { id: string; nom: string; joueurs: Joueur[]; fleches: Fleche[]; ballon: {x:number,y:number}; tailles?: {joueurs:number;ballon:number} };
 
 const W = 800, H = 520;
 
@@ -68,6 +69,9 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
   const [outil, setOutil] = useState<'deplacer'|'fleche'|'fleche_ballon'|'supprimer'>('deplacer');
   const [anime, setAnime] = useState(false);
   const [club]=useClub();
+  const [tailles,setTailles]=useState({joueurs:1,ballon:1});
+  const taillesRef=useRef(tailles);
+  taillesRef.current=tailles;
   const [enreg,setEnreg]=useState(false);
   const [videoPrete,setVideoPrete]=useState<File|null>(null);
   const finAnimRef=useRef<(()=>void)|null>(null);
@@ -116,14 +120,14 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
       ctx.fillStyle='white';ctx.fillText(String(f.ordre),mx,my);
     });
     ctx.globalAlpha=1;js.forEach(j=>{
-      ctx.beginPath();ctx.arc(j.x,j.y,13,0,Math.PI*2);
+      ctx.beginPath();ctx.arc(j.x,j.y,13*taillesRef.current.joueurs,0,Math.PI*2);
       ctx.fillStyle=j.equipe==='nous'?'#1a5276':'#e74c3c';
       ctx.fill();ctx.strokeStyle='white';ctx.lineWidth=1.5;ctx.stroke();
-      ctx.fillStyle='white';ctx.font='bold 10px sans-serif';
+      ctx.fillStyle='white';ctx.font='bold '+Math.round(10*taillesRef.current.joueurs)+'px sans-serif';
       ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText(String(j.numero),j.x,j.y);
     });
-    ctx.save();ctx.translate(bal.x,bal.y);
+    ctx.save();ctx.translate(bal.x,bal.y);ctx.scale(taillesRef.current.ballon,taillesRef.current.ballon);
     ctx.fillStyle='#c8860a';
     ctx.beginPath();ctx.ellipse(0,0,9,6,Math.PI/6,0,Math.PI*2);
     ctx.fill();ctx.strokeStyle='white';ctx.lineWidth=1;ctx.stroke();
@@ -132,13 +136,13 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
     ctx.restore();
   },[]);
 
-  useEffect(()=>{draw(joueurs,fleches,ballon);},[joueurs,fleches,ballon,draw]);
+  useEffect(()=>{draw(joueurs,fleches,ballon);},[joueurs,fleches,ballon,draw,tailles]);
 
   const getPos=(cx:number,cy:number)=>{
     const r=canvas.current!.getBoundingClientRect();
     return {x:(cx-r.left)*(W/r.width),y:(cy-r.top)*(H/r.height)};
   };
-  const trouverJoueur=(x:number,y:number)=>joueursRef.current.find(j=>Math.hypot(j.x-x,j.y-y)<16)||null;
+  const trouverJoueur=(x:number,y:number)=>joueursRef.current.find(j=>Math.hypot(j.x-x,j.y-y)<Math.max(16,13*taillesRef.current.joueurs+4))||null;
   const trouverFleche=(x:number,y:number)=>flechesRef.current.find(f=>{
     const len=Math.hypot(f.x2-f.x1,f.y2-f.y1);
     if(len<1)return false;
@@ -149,7 +153,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
   const handleStart=(x:number,y:number)=>{
     const o=outilRef.current;
     const j=trouverJoueur(x,y);
-    const ballonProche=Math.hypot(x-ballonRef.current.x,y-ballonRef.current.y)<16;
+    const ballonProche=Math.hypot(x-ballonRef.current.x,y-ballonRef.current.y)<Math.max(16,9*taillesRef.current.ballon+6);
     if(o==='deplacer'){
       if(j){dragRef.current=j.id;offsetRef.current={x:x-j.x,y:y-j.y};}
       else if(ballonProche){dragBallonRef.current=true;}
@@ -307,7 +311,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
 
   const sauvegarderSchema=()=>{
     if(!nomNouv.trim())return;
-    const s:Schema={id:Date.now().toString(),nom:nomNouv.trim(),joueurs:joueursRef.current.map(j=>({...j})),fleches:[...flechesRef.current],ballon:{...ballonRef.current}};
+    const s:Schema={id:Date.now().toString(),nom:nomNouv.trim(),joueurs:joueursRef.current.map(j=>({...j})),fleches:[...flechesRef.current],ballon:{...ballonRef.current},tailles:{...taillesRef.current}};
     const nouv=[...schemas,s];
     setSchemas(nouv);
     setNomNouv('');setSauvegardeOuv(false);
@@ -316,7 +320,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
   const chargerSchema=(s:Schema)=>{
     setJoueurs(s.joueurs.map(j=>({...j})));
     setFleches(s.fleches.map(f=>({...f})));
-    setBallon({...s.ballon});setVue('terrain');
+    setBallon({...s.ballon});setTailles(s.tailles?{...s.tailles}:{joueurs:1,ballon:1});setVue('terrain');
   };
 
   const supprimerSchema=(id:string)=>{
@@ -416,6 +420,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
           Outil : <strong style={{color:'#14211c'}}>{outil==='deplacer'?'Déplacer':outil==='fleche'?'Mouvement joueur':outil==='fleche_ballon'?'Mouvement ballon':'Supprimer'}</strong>
           &nbsp;| Ordre actuel : <strong style={{color:club.couleur}}>{prochainOrdreVal}</strong>
         </div>
+        <Curseurs reglages={[{id:'joueurs',label:'Joueurs',valeur:tailles.joueurs},{id:'ballon',label:'Ballon',valeur:tailles.ballon}]} onChange={(id,v)=>setTailles(t=>({...t,[id]:v}))} onReset={()=>setTailles({joueurs:1,ballon:1})}/>
         <canvas ref={canvas} width={W} height={H}
           style={{width:'100%',borderRadius:12,cursor:outil==='deplacer'?'grab':'crosshair',touchAction:'none',display:'block'}}
           onMouseDown={onMD} onMouseMove={onMM} onMouseUp={onMU}

@@ -80,7 +80,7 @@ export default function MiniTerrain({ elements, onOuvrir }: { elements: any[], o
     dessinerTerrain(ctx);
     const scaleX = W / 800;
     const scaleY = H / 520;
-    elements.forEach(el => dessinerEl(ctx, el, scaleX, scaleY));
+    elements.forEach(el => { const kt = el.taille || 1; if (kt === 1) { dessinerEl(ctx, el, scaleX, scaleY); return; } const px = el.x * scaleX, py = el.y * scaleY; ctx.save(); ctx.translate(px, py); ctx.scale(kt, kt); ctx.translate(-px, -py); dessinerEl(ctx, el, scaleX, scaleY); ctx.restore(); });
   }, [elements]);
 
   return (
