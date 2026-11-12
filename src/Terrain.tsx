@@ -367,11 +367,12 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
     etape();
   };
 
+  const [schemaCourantId,setSchemaCourantId]=useState<string|null>(null);
   const sauvegarder=()=>{
     if(!nomSeance.trim())return;
-    const id=Date.now().toString();
+    const id=schemaCourantId||Date.now().toString();
     const s={nom:nomSeance.trim(),elements:elementsRef.current.map(e=>({...e,taille:taillesRef.current[categorieDe(e.type)]})),fleches:[...flechesRef.current]};
-    setDoc(doc(db,'rugby-terrains',id),JSON.parse(JSON.stringify(s))).catch(e=>alert('Erreur Firestore : '+e.message));
+    setDoc(doc(db,'rugby-terrains',id),JSON.parse(JSON.stringify(s))).catch(e=>alert('Erreur Firestore : '+e.message));setSchemaCourantId(id);
     setNomSeance('');setSauvegardeOuv(false);
   };
 
@@ -396,7 +397,7 @@ export default function Terrain({ onRetour }: { onRetour: () => void }) {
         <div key={s.id} style={{backgroundColor:'#ffffff',border:'1px solid #dde4ea',borderRadius:12,padding:12,marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <span style={{color:'#14211c',fontWeight:'bold'}}>{s.nom}</span>
           <div style={{display:'flex',gap:6}}>
-            <button style={btn('#2ecc71')} onClick={()=>{const els=s.elements.map(e=>({...e}));const fls=(s.fleches||[]).map(f=>({...f}));setElements(els);elementsRef.current=els;setTailles(taillesDe(els));setFleches(fls);flechesRef.current=fls;setVue('terrain');}}>{IC.dossier}Charger</button>
+            <button style={btn('#2ecc71')} onClick={()=>{const els=s.elements.map(e=>({...e}));const fls=(s.fleches||[]).map(f=>({...f}));setElements(els);elementsRef.current=els;setTailles(taillesDe(els));setFleches(fls);flechesRef.current=fls;setSchemaCourantId(s.id);setNomSeance(s.nom);setVue('terrain');}}>{IC.dossier}Charger</button>
             <button style={btn('#e74c3c')} onClick={()=>{deleteDoc(doc(db,'rugby-terrains',s.id));}} aria-label="Supprimer la séance">{IC.supprimer}</button>
           </div>
         </div>

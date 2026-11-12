@@ -77,6 +77,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
   const [videoPrete,setVideoPrete]=useState<File|null>(null);
   const finAnimRef=useRef<(()=>void)|null>(null);
   const [schemas, setSchemas] = useCloud<Schema[]>('rugby-schemas', []);
+  const [schemaCourantId,setSchemaCourantId]=useState<string|null>(null);
   const [vue, setVue] = useState<'terrain'|'liste'>('terrain');
   const [nomNouv, setNomNouv] = useState('');
   const [sauvegardeOuv, setSauvegardeOuv] = useState(false);
@@ -312,8 +313,8 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
 
   const sauvegarderSchema=()=>{
     if(!nomNouv.trim())return;
-    const s:Schema={id:Date.now().toString(),nom:nomNouv.trim(),joueurs:joueursRef.current.map(j=>({...j})),fleches:[...flechesRef.current],ballon:{...ballonRef.current},tailles:{...taillesRef.current}};
-    const nouv=[...schemas,s];
+    const s:Schema={id:schemaCourantId||Date.now().toString(),nom:nomNouv.trim(),joueurs:joueursRef.current.map(j=>({...j})),fleches:[...flechesRef.current],ballon:{...ballonRef.current},tailles:{...taillesRef.current}};
+    const nouv=schemas.some(x=>x.id===s.id)?schemas.map(x=>x.id===s.id?s:x):[...schemas,s];setSchemaCourantId(s.id);
     setSchemas(nouv);
     setNomNouv('');setSauvegardeOuv(false);
   };
@@ -321,7 +322,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
   const chargerSchema=(s:Schema)=>{
     setJoueurs(s.joueurs.map(j=>({...j})));
     setFleches(s.fleches.map(f=>({...f})));
-    setBallon({...s.ballon});setTailles(s.tailles?{...s.tailles}:{joueurs:1,ballon:1});setVue('terrain');
+    setBallon({...s.ballon});setTailles(s.tailles?{...s.tailles}:{joueurs:1,ballon:1});setSchemaCourantId(s.id);setNomNouv(s.nom);setVue('terrain');
   };
 
   const supprimerSchema=(id:string)=>{
