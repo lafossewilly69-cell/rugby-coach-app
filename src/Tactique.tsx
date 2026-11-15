@@ -8,7 +8,8 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 
 type Joueur = { id: string; x: number; y: number; numero: number; equipe: 'nous' | 'eux' };
 type Fleche = { id: string; x1: number; y1: number; x2: number; y2: number; cibleId?: string; estBallon?: boolean; ordre: number };
-type Schema = { id: string; nom: string; joueurs: Joueur[]; fleches: Fleche[]; ballon: {x:number,y:number}; tailles?: {joueurs:number;ballon:number} };
+type Schema = { id: string; nom: string; joueurs: Joueur[]; fleches: Fleche[]; ballon: {x:number,y:number}; tailles?: {joueurs:number;ballon:number}; etapes?: Etape[] };
+type Etape = { id: string; nom: string; joueurs: Joueur[]; ballon: {x:number,y:number}; fleches: Fleche[] };
 
 const W = 800, H = 520;
 
@@ -78,6 +79,11 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
   const finAnimRef=useRef<(()=>void)|null>(null);
   const [schemas, setSchemas] = useCloud<Schema[]>('rugby-schemas', []);
   const [schemaCourantId,setSchemaCourantId]=useState<string|null>(null);
+  const [etapes,setEtapes]=useState<Etape[]>([{id:'e1',nom:'Mise en place',joueurs:[],ballon:{x:205,y:260},fleches:[]}]);
+  const [etapeIdx,setEtapeIdx]=useState(0);
+  const etapesRef=useRef(etapes);
+  const etapeIdxRef=useRef(0);
+  const aDesFleches=etapes.some((e,i)=>(i===etapeIdx?fleches:e.fleches).length>0);
   const [vue, setVue] = useState<'terrain'|'liste'>('terrain');
   const [nomNouv, setNomNouv] = useState('');
   const [sauvegardeOuv, setSauvegardeOuv] = useState(false);
@@ -204,7 +210,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
 
   const partager=async()=>{
     const c=canvas.current;
-    if(!c||anime||enreg||fleches.length===0)return;
+    if(!c||anime||enreg||!aDesFleches)return;
     const W2=c.width-(c.width%2),H2=c.height-(c.height%2);
     const VE:any=(window as any).VideoEncoder;
     let cfg:any=null;
@@ -224,10 +230,14 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
     let actif=true;
     let n=0;
     const t0=performance.now();
+    let dernierTs=0;
     const boucle=()=>{
       if(!actif)return;
       octx.drawImage(c,0,0,W2,H2,0,0,W2,H2);
-      const frame=new (window as any).VideoFrame(off,{timestamp:Math.round((performance.now()-t0)*1000)});
+      const ts=Math.round((performance.now()-t0)*1000);
+      const dur=n===0?16667:Math.max(1,ts-dernierTs);
+      dernierTs=ts;
+      const frame=new (window as any).VideoFrame(off,{timestamp:ts,duration:dur});
       enc.encode(frame,{keyFrame:n%30===0});
       frame.close();
       n++;
@@ -257,48 +267,62 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
     setVideoPrete(null);
   };
   const animer=()=>{
-    if(fleches.length===0||anime)return;
+    if(anime)return;
+    const maj=etapesSynchro();
+    if(maj.every(e=>e.fleches.length===0))return;
     setAnime(true);
-    const flechesSnap=[...flechesRef.current];
-    const maxOrdre=Math.max(...flechesSnap.map(f=>f.ordre));
-    // Cacher flèches pendant animation
-    draw(joueursRef.current,[],ballonRef.current);
-    setFleches([]);
-    // Sauvegarder positions initiales
-    const joueursInitiaux=joueursRef.current.map(j=>({...j}));
-    const ballonInitial={...ballonRef.current};
-    let ordreActuel=1;
-    let curJoueurs=joueursInitiaux.map(j=>({...j}));
-    let curBal={...ballonInitial};
-    const animeEtape=()=>{
-      if(ordreActuel>maxOrdre){
-        // Remettre joueurs et ballon à leur position initiale, remettre les flèches
-        setJoueurs(joueursInitiaux);joueursRef.current=joueursInitiaux;
-        setBallon(ballonInitial);ballonRef.current=ballonInitial;
-        setFleches(flechesSnap);flechesRef.current=flechesSnap;
-        draw(joueursInitiaux,flechesSnap,ballonInitial);
-        // Flèches remises
-        setAnime(false);if(finAnimRef.current){const fin=finAnimRef.current;finAnimRef.current=null;fin();}return;
-      }
-      const fEtape=flechesSnap.filter(f=>f.ordre===ordreActuel);
-      if(fEtape.length===0){ordreActuel++;animeEtape();return;}
-      let step=0;const steps=40;
-      const iv=setInterval(()=>{
-        step++;const t=step/steps;
-        const newJ=curJoueurs.map(j=>{
-          const f=fEtape.find(f=>f.cibleId===j.id);
-          if(f)return {...j,x:f.x1+(f.x2-f.x1)*t,y:f.y1+(f.y2-f.y1)*t};
-          return j;
-        });
-        const fb=fEtape.find(f=>f.estBallon);
-        const newBal=fb?{x:fb.x1+(fb.x2-fb.x1)*t,y:fb.y1+(fb.y2-fb.y1)*t}:curBal;
-        setJoueurs(newJ);joueursRef.current=newJ;
-        setBallon(newBal);ballonRef.current=newBal;
-        draw(newJ,[],newBal);
-        if(step>=steps){clearInterval(iv);curJoueurs=newJ;curBal=newBal;ordreActuel++;animeEtape();}
-      },20);
+    const depart=etapeIdxRef.current;
+    const ordreAvant=prochainOrdreVal;
+    const PAUSE_ETAPE=0; // pause (en ms) entre deux étapes
+    const finTout=()=>{
+      chargerEtape(maj[depart]);
+      setProchainOrdreVal(ordreAvant);
+      setEtapeIdx(depart);
+      draw(joueursRef.current,flechesRef.current,ballonRef.current);
+      setAnime(false);
+      if(finAnimRef.current){const fin=finAnimRef.current;finAnimRef.current=null;fin();}
     };
-    animeEtape();
+    const jouerEtape=(i:number)=>{
+      if(i>=maj.length){finTout();return;}
+      const e=maj[i];
+      setEtapeIdx(i);
+      let curJoueurs=e.joueurs.map(j=>({...j}));
+      let curBal={...e.ballon};
+      setJoueurs(curJoueurs);joueursRef.current=curJoueurs;
+      setBallon(curBal);ballonRef.current=curBal;
+      setFleches([]);flechesRef.current=[];
+      draw(curJoueurs,[],curBal);
+      const flechesSnap=e.fleches;
+      const maxOrdre=flechesSnap.length?Math.max(...flechesSnap.map(f=>f.ordre)):0;
+      const suivante=()=>{
+        if(PAUSE_ETAPE>0)setTimeout(()=>jouerEtape(i+1),PAUSE_ETAPE);
+        else jouerEtape(i+1);
+      };
+      if(maxOrdre===0){setTimeout(()=>jouerEtape(i+1),600);return;}
+      let ordreActuel=1;
+      const animeOrdre=()=>{
+        if(ordreActuel>maxOrdre){suivante();return;}
+        const fOrdre=flechesSnap.filter(f=>f.ordre===ordreActuel);
+        if(fOrdre.length===0){ordreActuel++;animeOrdre();return;}
+        let step=0;const steps=40;
+        const iv=setInterval(()=>{
+          step++;const t=step/steps;
+          const newJ=curJoueurs.map(j=>{
+            const f=fOrdre.find(f=>f.cibleId===j.id);
+            if(f)return {...j,x:f.x1+(f.x2-f.x1)*t,y:f.y1+(f.y2-f.y1)*t};
+            return j;
+          });
+          const fb=fOrdre.find(f=>f.estBallon);
+          const newBal=fb?{x:fb.x1+(fb.x2-fb.x1)*t,y:fb.y1+(fb.y2-fb.y1)*t}:curBal;
+          setJoueurs(newJ);joueursRef.current=newJ;
+          setBallon(newBal);ballonRef.current=newBal;
+          draw(newJ,[],newBal);
+          if(step>=steps){clearInterval(iv);curJoueurs=newJ;curBal=newBal;ordreActuel++;animeOrdre();}
+        },20);
+      };
+      animeOrdre();
+    };
+    jouerEtape(0);
   };
 
   const ajouterJoueur=()=>{
@@ -311,9 +335,75 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
     setModalJoueur(null);setNumInput('');
   };
 
+  const etapesSynchro=():Etape[]=>etapesRef.current.map((e,i)=>i===etapeIdxRef.current?{...e,joueurs:joueursRef.current.map(j=>({...j})),ballon:{...ballonRef.current},fleches:flechesRef.current.map(f=>({...f}))}:e);
+
+  const finDe=(fs:Fleche[],test:(f:Fleche)=>boolean)=>{
+    const c=fs.filter(test);
+    const libres=c.filter(f=>!aSuite(f,fs));
+    return (libres.length?libres:c).sort((a,b)=>b.ordre-a.ordre)[0];
+  };
+
+  const positionsFin=(e:Etape)=>{
+    const js=e.joueurs.map(j=>{
+      const f=finDe(e.fleches,g=>!g.estBallon&&g.cibleId===j.id);
+      return f?{...j,x:f.x2,y:f.y2}:{...j};
+    });
+    const fb=finDe(e.fleches,g=>!!g.estBallon);
+    return {joueurs:js,ballon:fb?{x:fb.x2,y:fb.y2}:{...e.ballon}};
+  };
+
+  const chargerEtape=(e:Etape)=>{
+    const js=e.joueurs.map(j=>({...j}));
+    const fs=e.fleches.map(f=>({...f}));
+    const b={...e.ballon};
+    setJoueurs(js);joueursRef.current=js;
+    setFleches(fs);flechesRef.current=fs;
+    setBallon(b);ballonRef.current=b;
+    setProchainOrdreVal(1);
+  };
+
+  const allerEtape=(i:number)=>{
+    if(i===etapeIdxRef.current||anime||enreg)return;
+    const maj=etapesSynchro();
+    setEtapes(maj);etapesRef.current=maj;
+    setEtapeIdx(i);etapeIdxRef.current=i;
+    chargerEtape(maj[i]);
+  };
+
+  const ajouterEtape=()=>{
+    if(anime||enreg)return;
+    const maj=etapesSynchro();
+    const fin=positionsFin(maj[maj.length-1]);
+    const n:Etape={id:Date.now().toString(),nom:'Étape '+(maj.length+1),joueurs:fin.joueurs,ballon:fin.ballon,fleches:[]};
+    const liste=[...maj,n];
+    setEtapes(liste);etapesRef.current=liste;
+    setEtapeIdx(liste.length-1);etapeIdxRef.current=liste.length-1;
+    chargerEtape(n);
+  };
+
+  const supprimerEtape=()=>{
+    if(etapesRef.current.length<2||anime||enreg)return;
+    if(!window.confirm('Supprimer cette étape ?'))return;
+    const maj=etapesSynchro();
+    const i=etapeIdxRef.current;
+    const liste=maj.filter((_,k)=>k!==i);
+    const j=Math.min(i,liste.length-1);
+    setEtapes(liste);etapesRef.current=liste;
+    setEtapeIdx(j);etapeIdxRef.current=j;
+    chargerEtape(liste[j]);
+  };
+
+  const renommerEtape=()=>{
+    const nom=window.prompt('Nom de cette étape',etapesRef.current[etapeIdxRef.current].nom);
+    if(!nom||!nom.trim())return;
+    const maj=etapesSynchro().map((e,k)=>k===etapeIdxRef.current?{...e,nom:nom.trim()}:e);
+    setEtapes(maj);etapesRef.current=maj;
+  };
+
   const sauvegarderSchema=()=>{
     if(!nomNouv.trim())return;
-    const s:Schema={id:schemaCourantId||Date.now().toString(),nom:nomNouv.trim(),joueurs:joueursRef.current.map(j=>({...j})),fleches:[...flechesRef.current],ballon:{...ballonRef.current},tailles:{...taillesRef.current}};
+    const maj=etapesSynchro();
+    const s:Schema=JSON.parse(JSON.stringify({id:schemaCourantId||Date.now().toString(),nom:nomNouv.trim(),joueurs:maj[0].joueurs,fleches:maj[0].fleches,ballon:maj[0].ballon,tailles:{...taillesRef.current},etapes:maj}));
     const nouv=schemas.some(x=>x.id===s.id)?schemas.map(x=>x.id===s.id?s:x):[...schemas,s];setSchemaCourantId(s.id);
     setSchemas(nouv);
     setNomNouv('');setSauvegardeOuv(false);
@@ -322,7 +412,14 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
   const chargerSchema=(s:Schema)=>{
     setJoueurs(s.joueurs.map(j=>({...j})));
     setFleches(s.fleches.map(f=>({...f})));
-    setBallon({...s.ballon});setTailles(s.tailles?{...s.tailles}:{joueurs:1,ballon:1});setSchemaCourantId(s.id);setNomNouv(s.nom);setVue('terrain');
+    setBallon({...s.ballon});setTailles(s.tailles?{...s.tailles}:{joueurs:1,ballon:1});setSchemaCourantId(s.id);setNomNouv(s.nom);
+    {
+      const liste:Etape[]=s.etapes&&s.etapes.length?s.etapes:[{id:'e1',nom:'Mise en place',joueurs:s.joueurs,ballon:s.ballon,fleches:s.fleches}];
+      setEtapes(liste);etapesRef.current=liste;
+      setEtapeIdx(0);etapeIdxRef.current=0;
+      chargerEtape(liste[0]);
+    }
+    setVue('terrain');
   };
 
   const supprimerSchema=(id:string)=>{
@@ -364,6 +461,20 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
         <h2 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:28}}>Schéma tactique</h2>
       </div>
 
+      <div style={{backgroundColor:'#ffffff',border:'1px solid #dde4ea',borderRadius:12,padding:10,marginBottom:12}}>
+        <div style={{fontWeight:700,fontSize:13,color:'#14211c',marginBottom:8}}>Étapes de la combinaison</div>
+        <div style={{display:'flex',gap:8,overflowX:'auto',paddingBottom:4}}>
+          {etapes.map((e,i)=>(
+            <button key={e.id} style={{...btn('#555',i===etapeIdx),whiteSpace:'nowrap',minHeight:40}} onClick={()=>allerEtape(i)}>{i+1} · {e.nom}</button>
+          ))}
+          <button style={{...btn('#2ecc71'),whiteSpace:'nowrap',minHeight:40}} onClick={ajouterEtape}>+ Ajouter une étape</button>
+        </div>
+        <div style={{display:'flex',gap:8,marginTop:8}}>
+          <button style={{...btn('#555'),minHeight:36,fontSize:12}} onClick={renommerEtape}>Renommer</button>
+          <button style={{...btn('#e74c3c'),minHeight:36,fontSize:12}} onClick={supprimerEtape}>Supprimer l'étape</button>
+        </div>
+      </div>
+
       {/* Modal ajout joueur */}
       {modalJoueur&&(
         <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,backgroundColor:'rgba(0,0,0,0.7)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100}}>
@@ -400,10 +511,10 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
           <span style={{color:'#5b6b64',fontSize:13,marginLeft:4}}>| Les flèches du même numéro s'animent ensemble</span>
         </div>
         <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
-          <button style={btn('#3498db')} onClick={animer} disabled={anime||fleches.length===0}>{IC.play}Animer</button>
+          <button style={btn('#3498db')} onClick={animer} disabled={anime||!aDesFleches}>{IC.play}Animer</button>
           {videoPrete
             ? <button style={btn('#25d366')} onClick={envoyer}>{IC.partager}Envoyer la vidéo</button>
-            : <button style={btn('#25d366')} onClick={partager} disabled={anime||enreg||fleches.length===0}>{enreg?'Enregistrement…':<>{IC.partager}Partager la tactique</>}</button>}
+            : <button style={btn('#25d366')} onClick={partager} disabled={anime||enreg||!aDesFleches}>{enreg?'Enregistrement…':<>{IC.partager}Partager la tactique</>}</button>}
           <button style={btn('#8e44ad')} onClick={()=>setSauvegardeOuv(v=>!v)}>{IC.sauver}Sauvegarder</button>
           <button style={btn('#16a085')} onClick={()=>setVue('liste')}>{IC.liste}Mes schémas ({schemas.length})</button>
           <button style={btn('#555')} onClick={onRetour}>{IC.retour}Retour</button>
