@@ -11,6 +11,8 @@ type Fleche = { id: string; x1: number; y1: number; x2: number; y2: number; cibl
 type Schema = { id: string; nom: string; joueurs: Joueur[]; fleches: Fleche[]; ballon: {x:number,y:number}; tailles?: {joueurs:number;ballon:number}; etapes?: Etape[] };
 type Etape = { id: string; nom: string; joueurs: Joueur[]; ballon: {x:number,y:number}; fleches: Fleche[] };
 
+type Snap = { joueurs: Joueur[]; ballon: {x:number,y:number}; fleches: Fleche[] };
+
 const W = 800, H = 520;
 
 function dessinerTerrain(ctx: CanvasRenderingContext2D) {
@@ -86,11 +88,24 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
   const aDesFleches=etapes.some((e,i)=>(i===etapeIdx?fleches:e.fleches).length>0);
   const [vue, setVue] = useState<'terrain'|'liste'>('terrain');
   const [nomNouv, setNomNouv] = useState('');
-  const [sauvegardeOuv, setSauvegardeOuv] = useState(false);
+  const [okMsg, setOkMsg] = useState(false);
   const [prochainOrdreVal, setProchainOrdreVal] = useState(1);
   // Modal ajout joueur
   const [modalJoueur, setModalJoueur] = useState<{equipe:'nous'|'eux'}|null>(null);
   const [numInput, setNumInput] = useState('');
+  const [large,setLarge]=useState(typeof window!=='undefined'&&window.innerWidth>=900);
+  useEffect(()=>{const f=()=>setLarge(window.innerWidth>=900);window.addEventListener('resize',f);return ()=>window.removeEventListener('resize',f);},[]);
+  const [cam,setCam]=useState({z:1,x:0,y:0});
+  const camRef=useRef(cam);
+  const cadreRef=useRef<HTMLDivElement>(null);
+  const gestRef=useRef<{d:number;cx:number;cy:number;z:number;x:number;y:number}|null>(null);
+  const [vitesse,setVitesse]=useState(1);
+  const vitesseRef=useRef(1);
+  vitesseRef.current=vitesse;
+  const histRef=useRef<Snap[]>([]);
+  const futurRef=useRef<Snap[]>([]);
+  const aBougeRef=useRef(false);
+  const [nbHist,setNbHist]=useState({h:0,f:0});
 
   const dragRef = useRef<string|null>(null);
   const dragBallonRef = useRef(false);
@@ -163,8 +178,8 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
     const j=trouverJoueur(x,y);
     const ballonProche=Math.hypot(x-ballonRef.current.x,y-ballonRef.current.y)<Math.max(16,9*taillesRef.current.ballon+6);
     if(o==='deplacer'){
-      if(j){dragRef.current=j.id;offsetRef.current={x:x-j.x,y:y-j.y};}
-      else if(ballonProche){dragBallonRef.current=true;}
+      if(j){pousserHist();aBougeRef.current=false;dragRef.current=j.id;offsetRef.current={x:x-j.x,y:y-j.y};}
+      else if(ballonProche){pousserHist();aBougeRef.current=false;dragBallonRef.current=true;}
     } else if(o==='fleche'){
       // Chercher pointe de flèche proche
       const pointe=flechesRef.current.filter(f=>!f.estBallon&&!aSuite(f,flechesRef.current)&&Math.hypot(x-f.x2,y-f.y2)<RAYON_POINTE).sort((a,b)=>Math.hypot(x-a.x2,y-a.y2)-Math.hypot(x-b.x2,y-b.y2))[0];
@@ -176,12 +191,13 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
       debutRef.current={x:last?last.x2:ballonRef.current.x,y:last?last.y2:ballonRef.current.y,estBallon:true};
     } else if(o==='supprimer'){
       const f=trouverFleche(x,y);
-      if(f)setFleches(fs=>fs.filter(ff=>ff.id!==f.id));
-      else if(j)setJoueurs(js=>js.filter(jj=>jj.id!==j.id));
+      if(f){pousserHist();setFleches(fs=>{const u=fs.filter(ff=>ff.id!==f.id);flechesRef.current=u;return u;});}
+      else if(j){pousserHist();setJoueurs(js=>{const u=js.filter(jj=>jj.id!==j.id);joueursRef.current=u;return u;});}
     }
   };
 
   const handleMove=(x:number,y:number)=>{
+    if(dragRef.current||dragBallonRef.current)aBougeRef.current=true;
     if(dragRef.current){
       setJoueurs(js=>{const u=js.map(j=>j.id===dragRef.current?{...j,x:x-offsetRef.current.x,y:y-offsetRef.current.y}:j);joueursRef.current=u;draw(u,flechesRef.current,ballonRef.current);return u;});
     } else if(dragBallonRef.current){
@@ -191,19 +207,51 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
 
   const handleEnd=(x:number,y:number)=>{
     const o=outilRef.current;
+    if((dragRef.current||dragBallonRef.current)&&!aBougeRef.current){histRef.current=histRef.current.slice(0,-1);setNbHist({h:histRef.current.length,f:futurRef.current.length});}
     if((o==='fleche'||o==='fleche_ballon')&&debutRef.current){
       if(Math.hypot(x-debutRef.current.x,y-debutRef.current.y)>15){
         const nf:Fleche={id:Date.now().toString(),x1:debutRef.current.x,y1:debutRef.current.y,x2:x,y2:y,cibleId:debutRef.current.cibleId,estBallon:debutRef.current.estBallon,ordre:prochainOrdreVal};
-        setFleches(fs=>{const u=[...fs,nf];flechesRef.current=u;draw(joueursRef.current,u,ballonRef.current);return u;});
+        pousserHist();setFleches(fs=>{const u=[...fs,nf];flechesRef.current=u;draw(joueursRef.current,u,ballonRef.current);return u;});
       }
       debutRef.current=null;
     }
     dragRef.current=null;dragBallonRef.current=false;
   };
 
-  const onTS=(e:React.TouchEvent)=>{e.preventDefault();const t=e.touches[0];const p=getPos(t.clientX,t.clientY);handleStart(p.x,p.y);};
-  const onTM=(e:React.TouchEvent)=>{e.preventDefault();const t=e.touches[0];const p=getPos(t.clientX,t.clientY);handleMove(p.x,p.y);};
-  const onTE=(e:React.TouchEvent)=>{e.preventDefault();const t=e.changedTouches[0];const p=getPos(t.clientX,t.clientY);handleEnd(p.x,p.y);};
+  const onTS=(e:React.TouchEvent)=>{
+    e.preventDefault();
+    if(e.touches.length>=2){
+      if((dragRef.current||dragBallonRef.current)&&!aBougeRef.current){histRef.current=histRef.current.slice(0,-1);setNbHist({h:histRef.current.length,f:futurRef.current.length});}
+      dragRef.current=null;dragBallonRef.current=false;debutRef.current=null;
+      const a=e.touches[0],b=e.touches[1];
+      const r=cadreRef.current!.getBoundingClientRect();
+      gestRef.current={d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)||1,cx:(a.clientX+b.clientX)/2-r.left,cy:(a.clientY+b.clientY)/2-r.top,z:camRef.current.z,x:camRef.current.x,y:camRef.current.y};
+      return;
+    }
+    const t=e.touches[0];const p=getPos(t.clientX,t.clientY);handleStart(p.x,p.y);
+  };
+  const onTM=(e:React.TouchEvent)=>{
+    e.preventDefault();
+    if(gestRef.current){
+      if(e.touches.length>=2){
+        const g=gestRef.current;
+        const a=e.touches[0],b=e.touches[1];
+        const r=cadreRef.current!.getBoundingClientRect();
+        const d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)||1;
+        const cx=(a.clientX+b.clientX)/2-r.left,cy=(a.clientY+b.clientY)/2-r.top;
+        const z=Math.min(4,Math.max(1,g.z*d/g.d));
+        const k=z/g.z;
+        poserCam(borner(z,cx-(g.cx-g.x)*k,cy-(g.cy-g.y)*k));
+      }
+      return;
+    }
+    const t=e.touches[0];const p=getPos(t.clientX,t.clientY);handleMove(p.x,p.y);
+  };
+  const onTE=(e:React.TouchEvent)=>{
+    e.preventDefault();
+    if(gestRef.current){if(e.touches.length<2)gestRef.current=null;return;}
+    const t=e.changedTouches[0];const p=getPos(t.clientX,t.clientY);handleEnd(p.x,p.y);
+  };
   const onMD=(e:React.MouseEvent)=>{const p=getPos(e.clientX,e.clientY);handleStart(p.x,p.y);};
   const onMM=(e:React.MouseEvent)=>{const p=getPos(e.clientX,e.clientY);handleMove(p.x,p.y);};
   const onMU=(e:React.MouseEvent)=>{const p=getPos(e.clientX,e.clientY);handleEnd(p.x,p.y);};
@@ -304,7 +352,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
         if(ordreActuel>maxOrdre){suivante();return;}
         const fOrdre=flechesSnap.filter(f=>f.ordre===ordreActuel);
         if(fOrdre.length===0){ordreActuel++;animeOrdre();return;}
-        let step=0;const steps=40;
+        let step=0;const steps=Math.max(6,Math.round(40/vitesseRef.current));
         const iv=setInterval(()=>{
           step++;const t=step/steps;
           const newJ=curJoueurs.map(j=>{
@@ -331,8 +379,66 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
     if(isNaN(num))return;
     const x=modalJoueur.equipe==='eux'?550:150;
     const y=100+(joueurs.filter(j=>j.equipe===modalJoueur.equipe).length*38)%400;
+    pousserHist();
     setJoueurs(js=>[...js,{id:Date.now().toString(),x,y,numero:num,equipe:modalJoueur.equipe}]);
     setModalJoueur(null);setNumInput('');
+  };
+
+  const instantane=():Snap=>({joueurs:joueursRef.current.map(j=>({...j})),ballon:{...ballonRef.current},fleches:flechesRef.current.map(f=>({...f}))});
+  const pousserHist=()=>{histRef.current=[...histRef.current.slice(-49),instantane()];futurRef.current=[];setNbHist({h:histRef.current.length,f:0});};
+  const viderHist=()=>{histRef.current=[];futurRef.current=[];setNbHist({h:0,f:0});};
+  const appliquerSnap=(s:Snap)=>{
+    setJoueurs(s.joueurs);joueursRef.current=s.joueurs;
+    setFleches(s.fleches);flechesRef.current=s.fleches;
+    setBallon(s.ballon);ballonRef.current=s.ballon;
+  };
+  const annuler=()=>{
+    if(anime||enreg||histRef.current.length===0)return;
+    const h=[...histRef.current];const s=h.pop() as Snap;
+    futurRef.current=[...futurRef.current,instantane()];
+    histRef.current=h;appliquerSnap(s);
+    setNbHist({h:h.length,f:futurRef.current.length});
+  };
+  const retablir=()=>{
+    if(anime||enreg||futurRef.current.length===0)return;
+    const f=[...futurRef.current];const s=f.pop() as Snap;
+    histRef.current=[...histRef.current,instantane()];
+    futurRef.current=f;appliquerSnap(s);
+    setNbHist({h:histRef.current.length,f:f.length});
+  };
+  const choisirOutil=(o:'deplacer'|'fleche'|'fleche_ballon'|'supprimer')=>{outilRef.current=o;setOutil(o);};
+  const effacerFleches=()=>{pousserHist();setFleches([]);flechesRef.current=[];};
+  const reinitialiser=()=>{
+    pousserHist();
+    const js=JOUEURS_INIT.map(j=>({...j}));
+    setJoueurs(js);joueursRef.current=js;
+    setFleches([]);flechesRef.current=[];
+    const b={x:205,y:260};setBallon(b);ballonRef.current=b;
+  };
+  const poserCam=(c:{z:number;x:number;y:number})=>{camRef.current=c;setCam(c);};
+  const borner=(z:number,x:number,y:number)=>{
+    const r=cadreRef.current?cadreRef.current.getBoundingClientRect():null;
+    const cw=r?r.width:W,ch=r?r.height:H;
+    const zz=Math.min(4,Math.max(1,z));
+    return {z:zz,x:Math.min(0,Math.max(cw*(1-zz),x)),y:Math.min(0,Math.max(ch*(1-zz),y))};
+  };
+  const zoomer=(f:number)=>{
+    const el=cadreRef.current;if(!el)return;
+    const b=el.getBoundingClientRect();
+    const c0=camRef.current;
+    const z=Math.min(4,Math.max(1,c0.z*f));
+    const cx=b.width/2,cy=b.height/2;
+    poserCam(borner(z,cx-(cx-c0.x)*(z/c0.z),cy-(cy-c0.y)*(z/c0.z)));
+  };
+  const nouvelleTactique=()=>{
+    if(anime||enreg)return;
+    if(!window.confirm('Commencer une nouvelle tactique ? Les modifications non enregistrées seront perdues.'))return;
+    const liste:Etape[]=[{id:'e1',nom:'Mise en place',joueurs:JOUEURS_INIT.map(j=>({...j})),ballon:{x:205,y:260},fleches:[]}];
+    setEtapes(liste);etapesRef.current=liste;
+    setEtapeIdx(0);etapeIdxRef.current=0;
+    chargerEtape(liste[0]);
+    setSchemaCourantId(null);setNomNouv('');viderHist();
+    poserCam({z:1,x:0,y:0});
   };
 
   const etapesSynchro=():Etape[]=>etapesRef.current.map((e,i)=>i===etapeIdxRef.current?{...e,joueurs:joueursRef.current.map(j=>({...j})),ballon:{...ballonRef.current},fleches:flechesRef.current.map(f=>({...f}))}:e);
@@ -367,7 +473,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
     const maj=etapesSynchro();
     setEtapes(maj);etapesRef.current=maj;
     setEtapeIdx(i);etapeIdxRef.current=i;
-    chargerEtape(maj[i]);
+    chargerEtape(maj[i]);viderHist();
   };
 
   const ajouterEtape=()=>{
@@ -378,7 +484,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
     const liste=[...maj,n];
     setEtapes(liste);etapesRef.current=liste;
     setEtapeIdx(liste.length-1);etapeIdxRef.current=liste.length-1;
-    chargerEtape(n);
+    chargerEtape(n);viderHist();
   };
 
   const supprimerEtape=()=>{
@@ -390,7 +496,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
     const j=Math.min(i,liste.length-1);
     setEtapes(liste);etapesRef.current=liste;
     setEtapeIdx(j);etapeIdxRef.current=j;
-    chargerEtape(liste[j]);
+    chargerEtape(liste[j]);viderHist();
   };
 
   const renommerEtape=()=>{
@@ -401,12 +507,13 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
   };
 
   const sauvegarderSchema=()=>{
-    if(!nomNouv.trim())return;
+    if(!nomNouv.trim()){alert('Donne un nom à la tactique avant de l\'enregistrer');return;}
     const maj=etapesSynchro();
     const s:Schema=JSON.parse(JSON.stringify({id:schemaCourantId||Date.now().toString(),nom:nomNouv.trim(),joueurs:maj[0].joueurs,fleches:maj[0].fleches,ballon:maj[0].ballon,tailles:{...taillesRef.current},etapes:maj}));
-    const nouv=schemas.some(x=>x.id===s.id)?schemas.map(x=>x.id===s.id?s:x):[...schemas,s];setSchemaCourantId(s.id);
+    const nouv=schemas.some(x=>x.id===s.id)?schemas.map(x=>x.id===s.id?s:x):[...schemas,s];
+    setSchemaCourantId(s.id);
     setSchemas(nouv);
-    setNomNouv('');setSauvegardeOuv(false);
+    setOkMsg(true);setTimeout(()=>setOkMsg(false),2000);
   };
 
   const chargerSchema=(s:Schema)=>{
@@ -417,7 +524,7 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
       const liste:Etape[]=s.etapes&&s.etapes.length?s.etapes:[{id:'e1',nom:'Mise en place',joueurs:s.joueurs,ballon:s.ballon,fleches:s.fleches}];
       setEtapes(liste);etapesRef.current=liste;
       setEtapeIdx(0);etapeIdxRef.current=0;
-      chargerEtape(liste[0]);
+      chargerEtape(liste[0]);viderHist();
     }
     setVue('terrain');
   };
@@ -455,24 +562,23 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
     </div>
   );
 
-  return(
-    <div style={{fontFamily:'sans-serif',maxWidth:820,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh'}}>
-      <div style={{background:fondBande(club),color:texteSur(club.couleur),padding:'16px 18px',borderRadius:16,marginBottom:12,textAlign:'left'}}>
-        <h2 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:28}}>Schéma tactique</h2>
-      </div>
+  const panneau:React.CSSProperties={backgroundColor:'#ffffff',border:'1px solid #dde4ea',borderRadius:16,padding:10,boxSizing:'border-box'};
+  const titrePanneau:React.CSSProperties={fontWeight:700,fontSize:13,color:'#14211c',marginBottom:8};
+  const lg=(extra:React.CSSProperties={}):React.CSSProperties=>large?{width:'100%',justifyContent:'flex-start',...extra}:extra;
+  const grise=(d:boolean):React.CSSProperties=>d?{opacity:0.45,cursor:'not-allowed'}:{};
+  const sep:React.CSSProperties={marginTop:10,paddingTop:10,borderTop:'1px solid #e5eaee'};
 
-      <div style={{backgroundColor:'#ffffff',border:'1px solid #dde4ea',borderRadius:12,padding:10,marginBottom:12}}>
-        <div style={{fontWeight:700,fontSize:13,color:'#14211c',marginBottom:8}}>Étapes de la combinaison</div>
-        <div style={{display:'flex',gap:8,overflowX:'auto',paddingBottom:4}}>
-          {etapes.map((e,i)=>(
-            <button key={e.id} style={{...btn('#555',i===etapeIdx),whiteSpace:'nowrap',minHeight:40}} onClick={()=>allerEtape(i)}>{i+1} · {e.nom}</button>
-          ))}
-          <button style={{...btn('#2ecc71'),whiteSpace:'nowrap',minHeight:40}} onClick={ajouterEtape}>+ Ajouter une étape</button>
-        </div>
-        <div style={{display:'flex',gap:8,marginTop:8}}>
-          <button style={{...btn('#555'),minHeight:36,fontSize:12}} onClick={renommerEtape}>Renommer</button>
-          <button style={{...btn('#e74c3c'),minHeight:36,fontSize:12}} onClick={supprimerEtape}>Supprimer l'étape</button>
-        </div>
+  return(
+    <div style={{fontFamily:'sans-serif',maxWidth:large?1400:820,margin:'0 auto',padding:12,backgroundColor:'#f5f5f5',minHeight:'100vh',boxSizing:'border-box'}}>
+      <div style={{background:fondBande(club),color:texteSur(club.couleur),padding:'10px 14px',borderRadius:16,marginBottom:12,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+        <button style={{...btn('#555'),minHeight:40}} onClick={onRetour}>{IC.retour}Retour</button>
+        <h2 style={{margin:0,fontFamily:"'Barlow Condensed','Arial Narrow',sans-serif",fontWeight:700,fontSize:large?26:22,flex:large?'0 0 auto':'1 1 100%'}}>Simulateur tactique</h2>
+        <input value={nomNouv} onChange={e=>setNomNouv(e.target.value)} placeholder="Ma combinaison"
+          style={{flex:'1 1 160px',minWidth:140,padding:'0 12px',minHeight:40,borderRadius:10,border:'1px solid #d9e0dc',fontSize:15,boxSizing:'border-box'}}/>
+        <button style={{...btn('#8e44ad'),minHeight:40}} onClick={sauvegarderSchema}>{IC.sauver}Enregistrer</button>
+        {okMsg&&<span style={{fontSize:13,fontWeight:700}}>✔ Enregistré</span>}
+        <button style={{...btn('#16a085'),minHeight:40}} onClick={()=>setVue('liste')}>{IC.liste}Mes schémas ({schemas.length})</button>
+        <button style={{...btn('#555'),minHeight:40}} onClick={nouvelleTactique}>+ Nouvelle</button>
       </div>
 
       {/* Modal ajout joueur */}
@@ -491,54 +597,93 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
           </div>
         </div>
       )}
+      <div style={{display:'flex',flexDirection:large?'row':'column',gap:12,alignItems:large?'flex-start':'stretch'}}>
 
-      <div style={{backgroundColor:'#ffffff',border:'1px solid #dde4ea',borderRadius:16,padding:12,marginBottom:12}}>
-        <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
-          <button style={btn('#1a5276',outil==='deplacer')} onClick={()=>setOutil('deplacer')}>{IC.deplacer}Déplacer</button>
-          <button style={btn('#f39c12',outil==='fleche')} onClick={()=>setOutil('fleche')}>{IC.fleche}Mouvement joueur</button>
-          <button style={btn('#e67e22',outil==='fleche_ballon')} onClick={()=>setOutil('fleche_ballon')}>{IC.ballon}Mouvement ballon</button>
-          <button style={btn('#e74c3c',outil==='supprimer')} onClick={()=>setOutil('supprimer')}>{IC.supprimer}Supprimer</button>
-          <button style={btn('#1a5276')} onClick={()=>setModalJoueur({equipe:'nous'})}>{IC.plus}Joueur allié</button>
-          <button style={btn('#c0392b')} onClick={()=>setModalJoueur({equipe:'eux'})}>{IC.plus}Joueur adverse</button>
-          <button style={btn('#27ae60')} onClick={()=>setFleches([])}>{IC.effacer}Effacer flèches</button>
-          <button style={btn('#795548')} onClick={()=>{setJoueurs(JOUEURS_INIT.map(j=>({...j})));setFleches([]);setBallon({x:205,y:260});}}>{IC.reset}Réinitialiser</button>
-        </div>
-        <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8,alignItems:'center'}}>
-          <span style={{color:'#5b6b64',fontSize:14}}>Ordre flèche :</span>
-          <button style={{...btn('#555'),padding:'4px 10px',fontSize:14}} onClick={()=>setProchainOrdreVal(n=>Math.max(1,n-1))}>-</button>
-          <span style={{color:club.couleur,fontSize:18,fontWeight:'bold',minWidth:24,textAlign:'center'}}>{prochainOrdreVal}</span>
-          <button style={{...btn('#f39c12'),padding:'4px 10px',fontSize:14}} onClick={()=>setProchainOrdreVal(n=>n+1)}>+</button>
-          <span style={{color:'#5b6b64',fontSize:13,marginLeft:4}}>| Les flèches du même numéro s'animent ensemble</span>
-        </div>
-        <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}}>
-          <button style={btn('#3498db')} onClick={animer} disabled={anime||!aDesFleches}>{IC.play}Animer</button>
-          {videoPrete
-            ? <button style={btn('#25d366')} onClick={envoyer}>{IC.partager}Envoyer la vidéo</button>
-            : <button style={btn('#25d366')} onClick={partager} disabled={anime||enreg||!aDesFleches}>{enreg?'Enregistrement…':<>{IC.partager}Partager la tactique</>}</button>}
-          <button style={btn('#8e44ad')} onClick={()=>setSauvegardeOuv(v=>!v)}>{IC.sauver}Sauvegarder</button>
-          <button style={btn('#16a085')} onClick={()=>setVue('liste')}>{IC.liste}Mes schémas ({schemas.length})</button>
-          <button style={btn('#555')} onClick={onRetour}>{IC.retour}Retour</button>
-        </div>
-        {sauvegardeOuv&&(
-          <div style={{display:'flex',gap:8,marginBottom:8,alignItems:'center'}}>
-            <input value={nomNouv} onChange={e=>setNomNouv(e.target.value)}
-              placeholder="Nom du schéma (ex: Touche offensive 22m)"
-              style={{flex:1,padding:10,borderRadius:10,border:'1px solid #d9e0dc',fontSize:15}}/>
-            <button style={btn('#2ecc71')} onClick={sauvegarderSchema}>OK</button>
-            <button style={btn('#555')} onClick={()=>setSauvegardeOuv(false)}>✖</button>
+        {/* Outils */}
+        <div style={{...panneau,order:large?1:2,flex:large?'0 0 200px':'none',width:large?200:'auto'}}>
+          <div style={{display:'flex',flexDirection:large?'column':'row',flexWrap:'wrap',gap:6}}>
+            <button style={{...btn('#1a5276',outil==='deplacer'),...lg()}} onClick={()=>choisirOutil('deplacer')}>{IC.deplacer}Déplacer</button>
+            <button style={{...btn('#f39c12',outil==='fleche'),...lg()}} onClick={()=>choisirOutil('fleche')}>{IC.fleche}Mouvement joueur</button>
+            <button style={{...btn('#e67e22',outil==='fleche_ballon'),...lg()}} onClick={()=>choisirOutil('fleche_ballon')}>{IC.ballon}Mouvement ballon</button>
+            <button style={{...btn('#e74c3c',outil==='supprimer'),...lg()}} onClick={()=>choisirOutil('supprimer')}>{IC.supprimer}Supprimer</button>
+            <button style={{...btn('#1a5276'),...lg()}} onClick={()=>setModalJoueur({equipe:'nous'})}>{IC.plus}Joueur allié</button>
+            <button style={{...btn('#c0392b'),...lg()}} onClick={()=>setModalJoueur({equipe:'eux'})}>{IC.plus}Joueur adverse</button>
+            <button style={{...btn('#27ae60'),...lg()}} onClick={effacerFleches}>{IC.effacer}Effacer les flèches</button>
+            <button style={{...btn('#795548'),...lg()}} onClick={reinitialiser}>{IC.reset}Réinitialiser</button>
           </div>
-        )}
-        <div style={{fontSize:13,color:'#5b6b64',marginBottom:8}}>
-          🔵 Alliées &nbsp;|&nbsp; 🔴 Adversaires &nbsp;|&nbsp; 🏉 Ballon &nbsp;|&nbsp;
-          Outil : <strong style={{color:'#14211c'}}>{outil==='deplacer'?'Déplacer':outil==='fleche'?'Mouvement joueur':outil==='fleche_ballon'?'Mouvement ballon':'Supprimer'}</strong>
-          &nbsp;| Ordre actuel : <strong style={{color:club.couleur}}>{prochainOrdreVal}</strong>
+          <div style={sep}>
+            <div style={titrePanneau}>Ordre de la flèche</div>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <button style={{...btn('#555'),minHeight:40,padding:'0 14px'}} onClick={()=>setProchainOrdreVal(n=>Math.max(1,n-1))}>−</button>
+              <span style={{color:club.couleur,fontSize:20,fontWeight:'bold',minWidth:28,textAlign:'center'}}>{prochainOrdreVal}</span>
+              <button style={{...btn('#f39c12'),minHeight:40,padding:'0 14px'}} onClick={()=>setProchainOrdreVal(n=>n+1)}>+</button>
+            </div>
+            <div style={{fontSize:12,color:'#5b6b64',marginTop:6}}>Les flèches du même numéro s'animent ensemble</div>
+          </div>
+          <div style={sep}>
+            <div style={titrePanneau}>Taille des éléments</div>
+            <Curseurs reglages={[{id:'joueurs',label:'Joueurs',valeur:tailles.joueurs},{id:'ballon',label:'Ballon',valeur:tailles.ballon}]} onChange={(id,v)=>setTailles(t=>({...t,[id]:v}))} onReset={()=>setTailles({joueurs:1,ballon:1})}/>
+          </div>
         </div>
-        <Curseurs reglages={[{id:'joueurs',label:'Joueurs',valeur:tailles.joueurs},{id:'ballon',label:'Ballon',valeur:tailles.ballon}]} onChange={(id,v)=>setTailles(t=>({...t,[id]:v}))} onReset={()=>setTailles({joueurs:1,ballon:1})}/>
-        <canvas ref={canvas} width={W} height={H}
-          style={{width:'100%',borderRadius:12,cursor:outil==='deplacer'?'grab':'crosshair',touchAction:'none',display:'block'}}
-          onMouseDown={onMD} onMouseMove={onMM} onMouseUp={onMU}
-          onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}
-        />
+
+        {/* Terrain */}
+        <div style={{flex:1,minWidth:0,width:'100%',order:large?2:3}}>
+          <div style={{...panneau,padding:8}}>
+            <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:8,flexWrap:'wrap'}}>
+              <button style={{...btn('#555'),minHeight:38,padding:'0 14px'}} onClick={()=>zoomer(1/1.4)}>−</button>
+              <span style={{fontSize:13,color:'#5b6b64',minWidth:44,textAlign:'center'}}>{Math.round(cam.z*100)}%</span>
+              <button style={{...btn('#555'),minHeight:38,padding:'0 14px'}} onClick={()=>zoomer(1.4)}>+</button>
+              <button style={{...btn('#555'),minHeight:38}} onClick={()=>poserCam({z:1,x:0,y:0})}>Ajuster</button>
+              <span style={{flex:1}}/>
+              <button style={{...btn('#555'),minHeight:38,...grise(nbHist.h===0||anime||enreg)}} onClick={annuler} disabled={nbHist.h===0||anime||enreg}>↶ Annuler</button>
+              <button style={{...btn('#555'),minHeight:38,...grise(nbHist.f===0||anime||enreg)}} onClick={retablir} disabled={nbHist.f===0||anime||enreg}>↷ Rétablir</button>
+            </div>
+            <div ref={cadreRef} style={{overflow:'hidden',borderRadius:12,touchAction:'none',position:'relative'}}>
+              <div style={{transform:'translate('+cam.x+'px,'+cam.y+'px) scale('+cam.z+')',transformOrigin:'0 0'}}>
+                <canvas ref={canvas} width={W} height={H}
+                  style={{width:'100%',borderRadius:12,cursor:outil==='deplacer'?'grab':'crosshair',touchAction:'none',display:'block'}}
+                  onMouseDown={onMD} onMouseMove={onMM} onMouseUp={onMU}
+                  onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}
+                />
+              </div>
+            </div>
+            <div style={{fontSize:12,color:'#5b6b64',marginTop:6}}>
+              Outil : <strong style={{color:'#14211c'}}>{outil==='deplacer'?'Déplacer':outil==='fleche'?'Mouvement joueur':outil==='fleche_ballon'?'Mouvement ballon':'Supprimer'}</strong>
+              &nbsp;· Pince avec deux doigts pour zoomer et déplacer le terrain
+            </div>
+          </div>
+
+          <div style={{...panneau,marginTop:12,display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}>
+            <button style={{...btn('#3498db'),minHeight:52,padding:'0 30px',fontSize:17,...grise(anime||!aDesFleches)}} onClick={animer} disabled={anime||!aDesFleches}>{IC.play}Animer</button>
+            <div style={{display:'flex',alignItems:'center',gap:8,flex:'1 1 200px'}}>
+              <span style={{fontSize:14,color:'#5b6b64'}}>Vitesse :</span>
+              <input type="range" min={0.5} max={3} step={0.25} value={vitesse} onChange={e=>setVitesse(parseFloat(e.target.value))} style={{flex:1,minWidth:80}}/>
+              <span style={{fontWeight:700,fontSize:14,color:'#14211c',minWidth:36}}>x{vitesse}</span>
+            </div>
+            {videoPrete
+              ? <button style={{...btn('#25d366'),minHeight:48}} onClick={envoyer}>{IC.partager}Envoyer la vidéo</button>
+              : <button style={{...btn('#25d366'),minHeight:48,...grise(anime||enreg||!aDesFleches)}} onClick={partager} disabled={anime||enreg||!aDesFleches}>{enreg?'Enregistrement…':<>{IC.partager}Exporter la vidéo</>}</button>}
+          </div>
+        </div>
+
+        {/* Étapes */}
+        <div style={{...panneau,order:large?3:1,flex:large?'0 0 220px':'none',width:large?220:'auto'}}>
+          <div style={titrePanneau}>Étapes de la combinaison</div>
+          <div style={{display:'flex',flexDirection:large?'column':'row',gap:6,overflowX:large?'visible':'auto',overflowY:large?'auto':'visible',maxHeight:large?'48vh':undefined,paddingBottom:4}}>
+            {etapes.map((e,i)=>(
+              <button key={e.id} style={{...btn('#555',i===etapeIdx),...lg({minHeight:44}),whiteSpace:'nowrap'}} onClick={()=>allerEtape(i)}>
+                <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:24,height:24,borderRadius:12,backgroundColor:'rgba(0,0,0,0.15)',fontSize:13,flexShrink:0}}>{i+1}</span>
+                {e.nom}
+              </button>
+            ))}
+          </div>
+          <button style={{...btn('#2ecc71'),...lg(),marginTop:8,whiteSpace:'nowrap'}} onClick={ajouterEtape}>+ Ajouter une étape</button>
+          <div style={{display:'flex',gap:6,marginTop:8}}>
+            <button style={{...btn('#555'),minHeight:38,fontSize:12,flex:1}} onClick={renommerEtape}>Renommer</button>
+            <button style={{...btn('#e74c3c'),minHeight:38,fontSize:12,flex:1}} onClick={supprimerEtape}>Supprimer</button>
+          </div>
+        </div>
+
       </div>
     </div>
   );
