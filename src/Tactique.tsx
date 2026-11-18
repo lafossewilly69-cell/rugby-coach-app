@@ -63,6 +63,32 @@ const JOUEURS_INIT: Joueur[] = [
   {id:'j15',x:325,y:260,numero:15,equipe:'nous'},
 ];
 
+function miniature(e:{joueurs:Joueur[];ballon:{x:number;y:number};fleches:Fleche[]},t:{joueurs:number;ballon:number}):string{
+  const c=document.createElement('canvas');c.width=200;c.height=130;
+  const ctx=c.getContext('2d');if(!ctx)return '';
+  ctx.scale(200/W,130/H);
+  dessinerTerrain(ctx);
+  ctx.setLineDash([]);
+  e.fleches.forEach(f=>{
+    const col=f.estBallon?'#ff9800':'#ffeb3b';
+    ctx.strokeStyle=col;ctx.fillStyle=col;ctx.lineWidth=4;
+    ctx.beginPath();ctx.moveTo(f.x1,f.y1);ctx.lineTo(f.x2,f.y2);ctx.stroke();
+    const a=Math.atan2(f.y2-f.y1,f.x2-f.x1);
+    ctx.beginPath();ctx.moveTo(f.x2,f.y2);
+    ctx.lineTo(f.x2-18*Math.cos(a-0.4),f.y2-18*Math.sin(a-0.4));
+    ctx.lineTo(f.x2-18*Math.cos(a+0.4),f.y2-18*Math.sin(a+0.4));
+    ctx.closePath();ctx.fill();
+  });
+  e.joueurs.forEach(j=>{
+    ctx.beginPath();ctx.arc(j.x,j.y,15*t.joueurs,0,Math.PI*2);
+    ctx.fillStyle=j.equipe==='nous'?'#1a5276':'#e74c3c';ctx.fill();
+    ctx.strokeStyle='white';ctx.lineWidth=3;ctx.stroke();
+  });
+  ctx.beginPath();ctx.ellipse(e.ballon.x,e.ballon.y,11*t.ballon,7*t.ballon,Math.PI/6,0,Math.PI*2);
+  ctx.fillStyle='#c8860a';ctx.fill();ctx.strokeStyle='white';ctx.lineWidth=2;ctx.stroke();
+  return c.toDataURL('image/jpeg',0.7);
+}
+
 const aSuite=(f:Fleche,fs:Fleche[])=>fs.some(g=>g.id!==f.id&&!!g.estBallon===!!f.estBallon&&Math.hypot(g.x1-f.x2,g.y1-f.y2)<2);
 
 export default function Tactique({ onRetour }: { onRetour: () => void }) {
@@ -106,6 +132,15 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
   const futurRef=useRef<Snap[]>([]);
   const aBougeRef=useRef(false);
   const [nbHist,setNbHist]=useState({h:0,f:0});
+  const [minis,setMinis]=useState<Record<string,string>>({});
+  useEffect(()=>{
+    const t=setTimeout(()=>{
+      const m:Record<string,string>={};
+      etapes.forEach((e,i)=>{m[e.id]=miniature(i===etapeIdx?{joueurs,ballon,fleches}:e,tailles);});
+      setMinis(m);
+    },250);
+    return ()=>clearTimeout(t);
+  },[etapes,etapeIdx,joueurs,fleches,ballon,tailles]);
 
   const dragRef = useRef<string|null>(null);
   const dragBallonRef = useRef(false);
@@ -669,11 +704,14 @@ export default function Tactique({ onRetour }: { onRetour: () => void }) {
         {/* Étapes */}
         <div style={{...panneau,order:large?3:1,flex:large?'0 0 220px':'none',width:large?220:'auto'}}>
           <div style={titrePanneau}>Étapes de la combinaison</div>
-          <div style={{display:'flex',flexDirection:large?'column':'row',gap:6,overflowX:large?'visible':'auto',overflowY:large?'auto':'visible',maxHeight:large?'48vh':undefined,paddingBottom:4}}>
+          <div style={{display:'flex',flexDirection:large?'column':'row',gap:6,overflowX:large?'visible':'auto',overflowY:large?'auto':'visible',maxHeight:large?'60vh':undefined,paddingBottom:4}}>
             {etapes.map((e,i)=>(
-              <button key={e.id} style={{...btn('#555',i===etapeIdx),...lg({minHeight:44}),whiteSpace:'nowrap'}} onClick={()=>allerEtape(i)}>
-                <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:24,height:24,borderRadius:12,backgroundColor:'rgba(0,0,0,0.15)',fontSize:13,flexShrink:0}}>{i+1}</span>
-                {e.nom}
+              <button key={e.id} style={{...btn('#555',i===etapeIdx),...lg({minHeight:44}),flexDirection:'column',alignItems:'stretch',justifyContent:'flex-start',padding:6,gap:6,flex:large?'0 0 auto':'0 0 150px'}} onClick={()=>allerEtape(i)}>
+                <span style={{display:'flex',alignItems:'center',gap:6,whiteSpace:'nowrap'}}>
+                  <span style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:24,height:24,borderRadius:12,backgroundColor:'rgba(0,0,0,0.15)',fontSize:13,flexShrink:0}}>{i+1}</span>
+                  {e.nom}
+                </span>
+                {minis[e.id]&&<img src={minis[e.id]} alt="" style={{width:'100%',borderRadius:8,display:'block',border:'1px solid rgba(0,0,0,0.2)'}}/>}
               </button>
             ))}
           </div>
